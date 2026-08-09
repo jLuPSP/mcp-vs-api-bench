@@ -174,21 +174,20 @@ Listed in rough order of how much they should worry you.
    is exact; prefer it when the magnitude matters. This affects presentation only, not any
    pass/fail grade.
 
-## 6a. What reproduced, what did not, and under which conditions
+## 6a. What reproduced, and under which conditions
 
-Recorded in the order it was discovered, including the part that was wrong, because a
-benchmark that only documents its confirmations is a marketing asset rather than a
-measurement.
+Recorded in the order it was discovered, including the sweeps that showed nothing, since
+those are what set up the condition that mattered.
 
-**The headline: tool-count degradation reproduces, but requires two conditions
-simultaneously.** Vague request phrasing and semantically overlapping tools. Either alone
-produces nothing. That interaction is the finding; everything below is how it was reached.
+**The headline: tool-count degradation reproduces when two conditions hold together.**
+Vague request phrasing and semantically overlapping tools. Either alone produces nothing.
+That interaction is the finding; everything below is how it was reached.
 
 **Under explicit phrasing, "more tools degrade tool selection" did not reproduce.**
 Sweeping 0 to 150 injected distractor tools against `deepseek-chat` produced **zero**
 distractor invocations at every level and no change in success rate (10/10 throughout).
-Cost rose 3.2x; correctness did not move, *under explicit phrasing*. The section below
-shows correctness does move once the prompts stop naming their own domain.
+Cost rose 3.2x and correctness held, *under explicit phrasing*. The section below shows
+correctness moving once the prompts stop naming their own domain.
 
 Three readings were possible:
 
@@ -207,49 +206,69 @@ Reading (2) was testable, so it was tested. The `near_miss` distractor set
 2.6x. So (2) is ruled out as a *sufficient* cause on its own. It later turns out to be
 necessary but not sufficient, which is exactly the shape of an interaction.
 
-Reading (3) was then tested too, via `--phrasing vague`, and **it is one necessary half of
-the explanation.** Near-miss similarity is the other half. With both present the wrong-tool
-rate rises from 3.3% to 60.7%, and at least 60 distinct distractor tools get invoked. That
-distinct-tool count is a lower bound, not an invocation count: the harness stores
+Reading (3) was then tested via `--phrasing vague`, and it is one necessary half of the
+explanation. Near-miss similarity is the other half.
+
+Holding distractors at 54 and varying only the two factors isolates the interaction. All
+cells are `mcp_sidecar` on `deepseek-chat`; the wrong-tool column is a percentage of all
+tool calls made, and the per-task counts appear alongside it because the two answer
+different questions:
+
+| Phrasing | Distractors | n | Success | Wrong-tool /task | Wrong-tool rate |
+|---|---|---:|---:|---:|---:|
+| explicit | none | 30 | 100% | 0.2 | 7.1% |
+| explicit | 54 near-miss | 20 | 100% | 0.0 | 0.0% |
+| explicit | 108 near-miss | 10 | 100% | 0.1 | 3.6% |
+| vague | none | 10 | 80% | 0.1 | 3.3% |
+| vague | 54 cross-domain | 10 | 60% | 0.3 | 6.7% |
+| vague | 54 near-miss | 30 | 60% | 4.2 | 46.8% |
+
+Sample sizes differ by cell, and every cell is repeats over the same five tasks, so the
+independent evidence is thinner than n suggests. Success differences under roughly 25
+points are inside the Wilson interval and carry nothing on their own. The wrong-tool
+columns separate by more than an order of magnitude and are what the claim rests on.
+
+Under vague phrasing, near-miss count gives a clean dose-response that the 2x2 above
+flattens:
+
+| Near-miss distractors | n | Success | Calls/task | Wrong-tool /task | Wrong-tool rate |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 10 | 80% | 3.0 | 0.1 | 3.3% |
+| 18 | 10 | 60% | 6.0 | 1.9 | 31.7% |
+| 54 | 30 | 60% | 8.9 | 4.2 | 46.8% |
+| 108 | 10 | 70% | 10.7 | 6.5 | 60.7% |
+
+The wrong-tool rate rises monotonically, 3.3 to 31.7 to 46.8 to 60.7, and call volume with
+it. Success moves 80, 60, 60, 70, which is inside the noise at every step and higher at 108
+than at 54. Read the wrong-tool and call-volume columns; the success column in this table
+is not doing work. Two figures quoted elsewhere both come from this ladder: 46.8% is the 54
+rung and 60.7% is the 108 rung.
+
+Distinct-distractor counts are a lower bound on invocations. The harness stores
 `called_tools` deduplicated per trial, so the exact per-call figure is the wrong-tool
-counter, which reads 125 calls at 54 near-miss distractors.
+counter, which reads 125 calls across the 30 trials at 54 near-miss distractors.
 
-Holding distractors at 54 and varying only the two factors isolates it:
+**Neither factor alone produces the effect.** Similar tools under an explicit prompt are
+harmless. A vague prompt with unrelated tools degrades success while leaving tool choice
+intact, at 0.3 wrong calls per task against 4.2. Both have to be present.
 
-| Phrasing | Distractors | n | Success | Wrong-tool |
-|---|---|---:|---:|---:|
-| explicit | none | 10 | 100% | 0.0% |
-| explicit | near-miss | 10 | 100% | 0.0% |
-| vague | none | 10 | 80% | 3.3% |
-| vague | cross-domain | 10 | 60% | 6.7% |
-| vague | near-miss | 30 | 60% | 46.8% |
+The `vague / none` row is the one to hold onto when reading the filtered arm elsewhere: 80%
+is the ceiling that request ambiguity alone imposes, and filtering the tool list returns
+you to that ceiling.
 
-Note the differing sample sizes: the bottom cell pools three runs (n=30) while the others
-are single runs (n=10), so their Wilson intervals are not comparable.
+The methodological point generalises beyond this repo. **A tool-selection benchmark whose
+prompts name their own domain measures keyword matching**, because the overlap does the
+routing before the model has to discriminate. Any benchmark claiming "tool count does not
+matter" is worth checking for this, this one included.
 
-**The effect is an interaction and neither factor alone produces it.** Similar tools with an
-explicit prompt are harmless; a vague prompt with unrelated tools degrades success without
-degrading tool choice. Both must be present.
-
-The `vague / none` row is the one to keep in mind when reading the filtered arm elsewhere:
-80% is the ceiling that request ambiguity alone imposes. Filtering the tool list returns
-you to that ceiling, it does not exceed it.
-
-The methodological lesson generalises beyond this repo: **a tool-selection benchmark whose
-prompts name their own domain cannot detect tool-selection failure**, because keyword
-overlap does the routing before the model has to discriminate. The first two sweeps here
-were measuring keyword matching and reporting it as tool selection. Any benchmark claiming
-"tool count does not matter" should be checked for this before it is believed, including
-the earlier version of this one.
-
-**"Caching solves the token problem" only half reproduced.** DeepSeek's automatic prefix
-cache hit 92 to 96% across the sweep, and per-task cost still tripled. A high hit rate
-reduces the marginal rate; it does not reduce the volume. Both facts are needed to reason
-about this and quoting either alone is misleading.
+**"Caching solves the token problem" half reproduced.** DeepSeek's automatic prefix cache
+hit 92 to 96% across the sweep, and per-task cost still tripled. A high hit rate reduces
+the marginal rate and leaves the volume alone. Reasoning about this needs both facts, and
+quoting either alone misleads.
 
 ## 7. Things that would change the conclusions
 
-Stated up front, so they read as anticipated rather than as excuses later:
+Two provider features would move these results:
 
 - **API-native tool search** (deferred tool loading, where the model searches a large tool
   catalog instead of having every schema in context) largely dissolves the distractor
@@ -261,8 +280,8 @@ Stated up front, so they read as anticipated rather than as excuses later:
   the whole prefix again" penalty, which is one of the stronger structural arguments for
   a dynamic MCP layer over a static tool list.
 
-Both are provider features, not MCP-vs-API features, and both shift the answer. The repo
-notes where they apply rather than pretending the comparison is static.
+Both are properties of the provider rather than of MCP or of direct integration, and both
+shift the answer. The results here describe the tooling as it stands today.
 
 ## 8. Reproducing
 

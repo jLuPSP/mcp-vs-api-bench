@@ -385,7 +385,7 @@
       carefully you curate the tool surface.
     </p>
     <div class="mast-meta">
-      <span>435 graded trials</span>
+      <span>265 graded model trials</span>
       <span>26 configurations</span>
       <span>deepseek-chat</span>
       <span>$0.99 total spend</span>
@@ -447,7 +447,7 @@
         <div class="metric">
           <span class="k">Remote gateway</span>
           <span class="v">2.0&times;</span>
-          <span class="s">of one-way RTT, per tool call</span>
+          <span class="s">of one-way latency = 1 RTT, per call</span>
         </div>
         <div class="metric">
           <span class="k">Schema tokens</span>
@@ -466,9 +466,9 @@
         </div>
       </div>
 
-      <p class="prov">Measured &mdash; benchmark, single model, n stated per result</p>
-      <p class="prov assumed">Modelled &mdash; cost assumptions you should replace with your own</p>
-      <p class="prov judgement">Judgement &mdash; professional opinion, not measurement</p>
+      <p class="prov">Measured: benchmark, single model, n stated per result</p>
+      <p class="prov assumed">Modelled: cost assumptions you should replace with your own</p>
+      <p class="prov judgement">Judgement: professional opinion, not measurement</p>
     </section>
 
     <!-- ============================================ -->
@@ -529,8 +529,9 @@
             (sidecar or stdio). Otherwise a central gateway is fine.
           </p>
           <p class="gate-ev">
-            Measured: a remote gateway costs <strong>2.0&times; the one-way RTT per tool call</strong>,
-            because a streamable-HTTP call makes two client-facing trips. At a 30 ms hop that is
+            Measured: a remote gateway costs <strong>2.0&times; the one-way latency per tool call</strong>,
+            because a streamable-HTTP call goes out and comes back over the link, which is one
+            full round trip. At a 30 ms one-way hop that is
             60 ms per call. Under ~10 calls it stays inside the noise of a model turn.
           </p>
         </div>
@@ -550,8 +551,8 @@
           <tbody>
             <tr>
               <td>Lower latency per call?</td><td><span class="chip flat">Direct</span></td>
-              <td class="num">2&ndash;4 ms</td>
-              <td><strong>No.</strong> Model turns are 800&ndash;5,000 ms.</td>
+              <td class="num">2.2&ndash;4.1 ms</td>
+              <td><strong>No.</strong> Model turns are 800 to 5,000 ms.</td>
             </tr>
             <tr>
               <td>Fewer tokens per call?</td><td><span class="chip flat">Direct</span></td>
@@ -612,7 +613,7 @@
 
       <h3>Where the count threshold comes from</h3>
 
-      <p class="prov assumed">Modelled &mdash; labour inputs are defaults; replace with yours before quoting a figure</p>
+      <p class="prov assumed">Modelled: labour inputs are defaults; replace with yours before quoting a figure</p>
 
       <div class="tbl">
         <table>
@@ -718,7 +719,7 @@
           <g font-family="ui-monospace, monospace" font-size="12" fill="currentColor">
 
             <!-- DIRECT -->
-            <text x="0" y="16" font-size="11" letter-spacing="1.4" opacity="0.62">DIRECT API &mdash; 1 HOP</text>
+            <text x="0" y="16" font-size="11" letter-spacing="1.4" opacity="0.62">DIRECT API / 1 HOP</text>
             <rect x="0" y="30" width="150" height="58" fill="none" stroke="currentColor" stroke-width="1.4"/>
             <text x="12" y="52">Agent</text>
             <text x="12" y="70" font-size="10.5" opacity="0.66">schemas in source</text>
@@ -736,7 +737,7 @@
             <text x="470" y="70" font-size="11" opacity="0.72">You write it, per agent.</text>
 
             <!-- MCP -->
-            <text x="0" y="146" font-size="11" letter-spacing="1.4" opacity="0.62">MCP &mdash; 2 HOPS</text>
+            <text x="0" y="146" font-size="11" letter-spacing="1.4" opacity="0.62">MCP / 2 HOPS</text>
             <rect x="0" y="160" width="150" height="58" fill="none" stroke="currentColor" stroke-width="1.4"/>
             <text x="12" y="182">Agent</text>
             <text x="12" y="200" font-size="10.5" opacity="0.66">asks for tool list</text>
@@ -796,7 +797,7 @@
       <span class="h2num">04</span>
       <h2>Latency: real, small, and mostly a client-configuration story</h2>
 
-      <p class="prov">Measured &mdash; no LLM in the loop, backend latency fixed at 40 ms, jitter 0</p>
+      <p class="prov">Measured: no LLM in the loop, backend latency fixed at 40 ms, jitter 0</p>
 
       <p>
         Protocol overhead is isolated by subtracting the backend's self-reported service time
@@ -823,7 +824,7 @@
         <strong>The latency objection to MCP does not survive measurement.</strong>
       </p>
 
-      <h3>But a remote gateway costs two round trips, not one</h3>
+      <h3>A remote gateway pays the one-way latency twice</h3>
 
       <p>
         Sweeping an injected one-way delay, with the gateway's own upstream call deliberately
@@ -845,11 +846,12 @@
       </div>
 
       <p>
-        Dead flat at <strong>2.0&times;</strong>, because a streamable-HTTP <code>tools/call</code>
-        makes two client-facing trips. <strong>Take your measured RTT to a central gateway and
-        double it.</strong> At a plausible 30 ms cross-region hop that is 60 ms per call, so a
-        task making eight calls pays half a second in network alone. This is the one place the
-        "deploy MCP closer to your agent" instinct is straightforwardly correct.
+        Dead flat at <strong>2.0&times;</strong> the injected one-way delay, because a
+        streamable-HTTP <code>tools/call</code> goes out and comes back and both legs cross the
+        link. <strong>Take your one-way latency to a central gateway and double it, which is one
+        full round trip per call.</strong> At a plausible 30 ms one-way hop that is 60 ms per
+        call, so a task making eight calls pays half a second in network alone. This is the one
+        place the "deploy MCP closer to your agent" instinct is straightforwardly correct.
       </p>
 
       <h3>The number that dwarfs everything else is a client bug</h3>
@@ -876,7 +878,7 @@
       <span class="h2num">05</span>
       <h2>Tokens and quality: curation beats protocol</h2>
 
-      <p class="prov">Measured &mdash; deepseek-chat, 5 graded tasks, deterministic state-based checkers</p>
+      <p class="prov">Measured: deepseek-chat, 5 graded tasks, deterministic state-based checkers</p>
 
       <p>
         Identical capability over an identical backend. The MCP server costs about twice the
@@ -922,21 +924,21 @@
           <thead>
             <tr>
               <th>Request phrasing</th><th>Extra tools loaded</th>
-              <th class="num">n</th><th class="num">Success</th><th class="num">Wrong-tool calls</th>
+              <th class="num">n</th><th class="num">Success</th><th class="num">Wrong-tool calls / task</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td>Explicit</td><td>108 near-miss</td><td class="num">10</td><td class="num">100%</td><td class="num">0</td></tr>
-            <tr><td>Explicit</td><td>54 near-miss</td><td class="num">20</td><td class="num">100%</td><td class="num">0</td></tr>
-            <tr><td>Vague</td><td>none</td><td class="num">10</td><td class="num">80%</td><td class="num">3</td></tr>
-            <tr><td>Vague</td><td>54 cross-domain</td><td class="num">10</td><td class="num">60%</td><td class="num">0 distractors</td></tr>
-            <tr class="hl"><td>Vague</td><td>54 near-miss</td><td class="num">30</td><td class="num">60%</td><td class="num">125</td></tr>
+            <tr><td>Explicit</td><td>108 near-miss</td><td class="num">10</td><td class="num">100%</td><td class="num">0.1</td></tr>
+            <tr><td>Explicit</td><td>54 near-miss</td><td class="num">20</td><td class="num">100%</td><td class="num">0.0</td></tr>
+            <tr><td>Vague</td><td>none</td><td class="num">10</td><td class="num">80%</td><td class="num">0.1</td></tr>
+            <tr><td>Vague</td><td>54 cross-domain</td><td class="num">10</td><td class="num">60%</td><td class="num">0.3</td></tr>
+            <tr class="hl"><td>Vague</td><td>54 near-miss</td><td class="num">30</td><td class="num">60%</td><td class="num">4.2</td></tr>
           </tbody>
         </table>
       </div>
 
       <p>
-        <strong>It is an interaction, and neither ingredient alone does it.</strong> Similar
+        <strong>Both conditions have to hold at once.</strong> Similar
         tools with an explicit request are completely harmless: 100% success and zero wrong
         calls even at 108 extra tools. A vague request with <em>unrelated</em> tools hurts
         success but never causes a wrong tool call, so that failure is comprehension, not
@@ -954,17 +956,17 @@
         </p>
       </div>
 
-      <h3>Under realistic conditions, both unfiltered arms drown</h3>
+      <h3>Under realistic conditions, curation beats protocol</h3>
 
       <div class="tbl">
         <table>
           <thead>
-            <tr><th>Arm</th><th class="num">n</th><th class="num">Success</th><th class="num">Calls / trial</th><th class="num">Wrong-tool calls</th><th class="num">$/task</th></tr>
+            <tr><th>Arm</th><th class="num">n</th><th class="num">Success</th><th class="num">Calls / task</th><th class="num">Wrong-tool calls / task</th><th class="num">$/task</th></tr>
           </thead>
           <tbody>
-            <tr><td class="mono">direct</td><td class="num">20</td><td class="num">55%</td><td class="num">23.8</td><td class="num">377</td><td class="num">$0.0134</td></tr>
-            <tr><td class="mono">mcp_sidecar</td><td class="num">30</td><td class="num">60%</td><td class="num">8.9</td><td class="num">125</td><td class="num">$0.0065</td></tr>
-            <tr class="hl"><td class="mono">mcp_filtered</td><td class="num">10</td><td class="num">80%</td><td class="num">2.0</td><td class="num">0</td><td class="num">$0.0030</td></tr>
+            <tr><td class="mono">direct</td><td class="num">20</td><td class="num">55%</td><td class="num">23.8</td><td class="num">18.9</td><td class="num">$0.0134</td></tr>
+            <tr><td class="mono">mcp_sidecar</td><td class="num">30</td><td class="num">60%</td><td class="num">8.9</td><td class="num">4.2</td><td class="num">$0.0065</td></tr>
+            <tr class="hl"><td class="mono">mcp_filtered</td><td class="num">10</td><td class="num">80%</td><td class="num">3.1</td><td class="num">0</td><td class="num">$0.0030</td></tr>
           </tbody>
         </table>
       </div>
@@ -989,7 +991,8 @@
           but counts of distractor <em>invocations</em> are bounded, not precise. The
           wrong-tool-call totals quoted above are exact (incremented per call). At n=10 to 30,
           success differences under about 25 points sit inside the Wilson interval. The
-          wrong-tool differences, 0 versus 125 versus 377, do not.
+          wrong-tool differences, 0 versus 4.2 versus 18.9 per task, clear it by more than an
+          order of magnitude, and those are the figures the conclusions rest on.
         </p>
       </div>
 
@@ -1171,7 +1174,7 @@
       <span class="h2num">07</span>
       <h2>This is not theoretical</h2>
 
-      <p class="prov judgement">Compiled from public disclosures &mdash; verify each against its primary source before citing</p>
+      <p class="prov judgement">Compiled from public disclosures: verify each against its primary source before citing</p>
 
       <p>
         A selection of publicly disclosed MCP vulnerabilities and incidents. The pattern worth
@@ -1217,7 +1220,7 @@
       <span class="h2num">08</span>
       <h2>Pre-production checklist</h2>
 
-      <p class="prov judgement">Judgement &mdash; derived from the spec's normative requirements and the incident record</p>
+      <p class="prov judgement">Judgement: derived from the spec's normative requirements and the incident record</p>
 
       <h4>Must be true before production</h4>
       <ul>
@@ -1251,7 +1254,7 @@
       <h2>What this evidence does not establish</h2>
 
       <p>
-        Stated plainly, because a brief that only lists its confirmations is a marketing asset.
+        Stated plainly, alongside the results they qualify.
       </p>
       <ul>
         <li><strong>One model.</strong> Every agentic result is <code>deepseek-chat</code>. Tool-selection behaviour is model-specific and will not transfer across families. Rerun the sweep on what you deploy.</li>
