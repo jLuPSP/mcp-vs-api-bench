@@ -1,0 +1,26 @@
+# Pinned to the exact versions used to produce results-reference/.
+#
+# Pinned rather than floored because the headline results depend on library behaviour
+# that has moved before: the MCP client's session and transport handling drives the
+# latency numbers, and the OpenAI client's usage accounting drives the token numbers.
+# A floating range would let those drift silently and quietly invalidate the comparison.
+#
+# To update deliberately: bump here, re-run `make reproduce`, and diff the new results
+# against results-reference/ before committing.
+
+# Backend + MCP server
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+mcp==1.29.0
+
+# Clients
+httpx==0.28.1
+openai==2.53.0          # DeepSeek + Ollama (OpenAI-compatible)
+anthropic==0.121.0      # optional; only needed for the anthropic provider
+
+# Harness
+pydantic==2.13.4
+PyYAML==6.0.3
+python-dotenv==1.2.2
+rich==15.0.0
+numpy==2.5.1

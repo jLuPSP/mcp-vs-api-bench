@@ -1,0 +1,99 @@
+# Per-million-token rates in USD, plus caching semantics.
+#
+# The harness reads this file to turn token counts into dollars, and to warn you when a
+# tool block is too small to be cacheable at all. Correct it here, not in code.
+#
+# `min_cacheable_tokens` is the single most under-appreciated number in this table. A
+# prompt prefix shorter than this silently will not cache: no error, just
+# cache_creation_input_tokens = 0 forever. It is NOT monotonic across model generations,
+# so do not interpolate.
+
+version: "2026-08-07"
+
+providers:
+
+  anthropic:
+    # Source: Anthropic first-party API rates, cached 2026-06-24. These also apply to
+    # Claude on Microsoft Foundry. Bedrock and Vertex are partner-operated with their own
+    # pricing; add separate entries if you benchmark there.
+    verified: true
+    cache:
+      # Multipliers applied to the base input rate.
+      write_5m: 1.25
+      write_1h: 2.0
+      read: 0.1
+      explicit_breakpoints: true   # you place cache_control yourself
+      max_breakpoints: 4
+    models:
+      claude-opus-5:
+        input_per_mtok: 5.00
+        output_per_mtok: 25.00
+        context: 1000000
+        min_cacheable_tokens: 512
+      claude-opus-4-8:
+        input_per_mtok: 5.00
+        output_per_mtok: 25.00
+        context: 1000000
+        min_cacheable_tokens: 1024
+      claude-sonnet-5:
+        # $3.00 / $15.00 standard; introductory $2.00 / $10.00 through 2026-08-31.
+        input_per_mtok: 3.00
+        output_per_mtok: 15.00
+        context: 1000000
+        min_cacheable_tokens: 1024
+      claude-haiku-4-5:
+        input_per_mtok: 1.00
+        output_per_mtok: 5.00
+        context: 200000
+        # Note the inversion: the cheapest model has the HIGHEST cacheable minimum.
+        min_cacheable_tokens: 4096
+
+  deepseek:
+    # VERIFY BEFORE QUOTING. DeepSeek's rates, cache-hit discount, and off-peak
+    # discounting have all moved more than once. Run `python -m bench.cli check-pricing`
+    # and update this block before putting a dollar figure in front of anyone.
+    verified: false
+    cache:
+      # DeepSeek context caching is AUTOMATIC (disk-based prefix cache). There is no
+      # cache_control marker and no breakpoint to place. This makes the cache experiment
+      # structurally different from Anthropic's and it gets its own row in the report.
+      write_5m: 1.0
+      write_1h: 1.0
+      # 0.07 / 0.27 = 0.259. This MUST agree with the explicit input_cached_per_mtok
+      # below; it previously read 0.1 (Anthropic's multiplier), which contradicted the
+      # explicit rates in this same file by 2.6x. metrics.py prefers the explicit rate so
+      # costed results were unaffected, but analysis/crossover.py takes a multiplier as an
+      # input and would have been given the wrong one.
+      read: 0.259
+      explicit_breakpoints: false
+      max_breakpoints: 0
+    models:
+      deepseek-chat:
+        input_per_mtok: 0.27          # cache miss
+        input_cached_per_mtok: 0.07   # cache hit
+        output_per_mtok: 1.10
+        context: 128000
+        min_cacheable_tokens: 0       # automatic prefix cache, no documented floor
+      deepseek-reasoner:
+        input_per_mtok: 0.55
+        input_cached_per_mtok: 0.14
+        output_per_mtok: 2.19
+        context: 128000
+        min_cacheable_tokens: 0
+
+  ollama:
+    # Self-hosted. Token cost is zero; the real cost is GPU time, which this harness
+    # reports as wall-clock rather than dollars.
+    verified: true
+    cache:
+      write_5m: 1.0
+      write_1h: 1.0
+      read: 1.0
+      explicit_breakpoints: false
+      max_breakpoints: 0
+    models:
+      "qwen3:14b-16k":
+        input_per_mtok: 0.0
+        output_per_mtok: 0.0
+        context: 16384
+        min_cacheable_tokens: 0

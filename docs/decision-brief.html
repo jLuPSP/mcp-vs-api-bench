@@ -1,0 +1,1296 @@
+<title>MCP vs Direct API: A Decision Brief</title>
+<style>
+  :root {
+    --ground: #EFF2F5;
+    --surface: #FFFFFF;
+    --surface-2: #F6F8FA;
+    --ink: #121821;
+    --ink-2: #3D4A5A;
+    --muted: #64748B;
+    --line: #D7DEE6;
+    --line-strong: #B8C4D0;
+    --accent: #2E5E8C;
+    --accent-soft: #E3ECF5;
+    --crit: #A32E2E;
+    --crit-soft: #F7E4E4;
+    --warn: #8A5A08;
+    --warn-soft: #FBF0DC;
+    --ok: #1F6B4A;
+    --ok-soft: #E1F0E8;
+    --measured: #2E5E8C;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0D131A;
+      --surface: #141D27;
+      --surface-2: #1A242F;
+      --ink: #E6ECF2;
+      --ink-2: #B7C4D1;
+      --muted: #8798A8;
+      --line: #263340;
+      --line-strong: #344454;
+      --accent: #78AEDC;
+      --accent-soft: #1A2C3E;
+      --crit: #F08C8C;
+      --crit-soft: #331C1C;
+      --warn: #E5B566;
+      --warn-soft: #33280F;
+      --ok: #6FC79C;
+      --ok-soft: #142E22;
+      --measured: #78AEDC;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0D131A; --surface: #141D27; --surface-2: #1A242F;
+    --ink: #E6ECF2; --ink-2: #B7C4D1; --muted: #8798A8;
+    --line: #263340; --line-strong: #344454;
+    --accent: #78AEDC; --accent-soft: #1A2C3E;
+    --crit: #F08C8C; --crit-soft: #331C1C;
+    --warn: #E5B566; --warn-soft: #33280F;
+    --ok: #6FC79C; --ok-soft: #142E22;
+    --measured: #78AEDC;
+  }
+  :root[data-theme="light"] {
+    --ground: #EFF2F5; --surface: #FFFFFF; --surface-2: #F6F8FA;
+    --ink: #121821; --ink-2: #3D4A5A; --muted: #64748B;
+    --line: #D7DEE6; --line-strong: #B8C4D0;
+    --accent: #2E5E8C; --accent-soft: #E3ECF5;
+    --crit: #A32E2E; --crit-soft: #F7E4E4;
+    --warn: #8A5A08; --warn-soft: #FBF0DC;
+    --ok: #1F6B4A; --ok-soft: #E1F0E8;
+    --measured: #2E5E8C;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 20px 96px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0 48px;
+  }
+  @media (min-width: 1040px) {
+    .wrap { grid-template-columns: 210px minmax(0, 1fr); }
+    .toc-col { display: block; }
+  }
+
+  /* ---- masthead ---- */
+  header.mast {
+    grid-column: 1 / -1;
+    border-bottom: 2px solid var(--ink);
+    padding: 44px 0 20px;
+    margin-bottom: 40px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(30px, 4.6vw, 46px);
+    line-height: 1.06;
+    letter-spacing: -0.024em;
+    font-weight: 660;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: clamp(16px, 1.9vw, 18.5px);
+    color: var(--ink-2);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .mast-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 26px;
+    margin-top: 22px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  /* ---- toc ---- */
+  .toc-col { display: none; }
+  .toc {
+    position: sticky;
+    top: 24px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  .toc li { counter-increment: toc; margin-bottom: 9px; }
+  .toc a {
+    color: var(--muted);
+    text-decoration: none;
+    display: block;
+    padding-left: 24px;
+    position: relative;
+    border-left: 2px solid transparent;
+  }
+  .toc a::before {
+    content: counter(toc, decimal-leading-zero);
+    position: absolute;
+    left: 8px;
+    color: var(--line-strong);
+  }
+  .toc a:hover, .toc a:focus-visible { color: var(--accent); }
+
+  main { grid-column: 1 / -1; min-width: 0; }
+  @media (min-width: 1040px) { main { grid-column: 2; } }
+
+  section { margin-bottom: 62px; scroll-margin-top: 24px; }
+  h2 {
+    font-size: clamp(21px, 2.6vw, 27px);
+    letter-spacing: -0.016em;
+    font-weight: 640;
+    line-height: 1.2;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  .h2num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 8px;
+  }
+  h3 {
+    font-size: 17px;
+    font-weight: 640;
+    letter-spacing: -0.008em;
+    margin: 34px 0 10px;
+  }
+  h4 { font-size: 14.5px; font-weight: 660; margin: 22px 0 6px; }
+  p { margin: 0 0 15px; max-width: 68ch; }
+  ul, ol { max-width: 68ch; padding-left: 20px; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 640; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
+  a { color: var(--accent); }
+
+  /* ---- callouts ---- */
+  .lede {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--accent);
+    padding: 24px 26px;
+    margin-bottom: 34px;
+  }
+  .lede p:last-child { margin-bottom: 0; }
+  .lede p { max-width: 70ch; }
+
+  .note {
+    border-left: 3px solid var(--line-strong);
+    padding: 2px 0 2px 16px;
+    margin: 20px 0;
+    color: var(--ink-2);
+    font-size: 15px;
+  }
+  .note.warn { border-left-color: var(--warn); }
+  .note.crit { border-left-color: var(--crit); }
+  .note p:last-child { margin-bottom: 0; }
+
+  /* ---- tables ---- */
+  .tbl { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.mono, th.mono { font-family: var(--mono); font-size: 12.5px; }
+  tbody tr.hl { background: var(--accent-soft); }
+  tbody tr.hl td { font-weight: 560; }
+
+  /* ---- chips ---- */
+  .chip {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .chip.crit { background: var(--crit-soft); color: var(--crit); border-color: var(--crit); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.ok   { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+  .chip.info { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .chip.flat { background: transparent; color: var(--muted); border-color: var(--line-strong); }
+
+  /* ---- evidence provenance marker ---- */
+  .prov {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .prov::before {
+    content: "";
+    width: 20px; height: 2px;
+    background: var(--measured);
+    display: inline-block;
+  }
+  .prov.assumed::before { background: var(--warn); }
+  .prov.judgement::before { background: var(--line-strong); }
+
+  /* ---- metric row ---- */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin: 22px 0;
+  }
+  .metric { background: var(--surface); padding: 15px 16px; }
+  .metric .k {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 7px;
+  }
+  .metric .v {
+    font-family: var(--mono);
+    font-size: 23px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    display: block;
+    line-height: 1.1;
+  }
+  .metric .s { font-size: 12px; color: var(--muted); display: block; margin-top: 5px; line-height: 1.4; }
+
+  /* ---- diagram ---- */
+  .diagram { margin: 26px 0; overflow-x: auto; }
+  .diagram svg { display: block; min-width: 520px; width: 100%; height: auto; }
+
+  /* ---- decision gates ---- */
+  .gate {
+    display: grid;
+    grid-template-columns: 54px 1fr;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    margin: 18px 0;
+  }
+  .gate-n {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--surface);
+    background: var(--accent);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 18px;
+    letter-spacing: 0.04em;
+  }
+  .gate-body { padding: 16px 20px 18px; min-width: 0; }
+  .gate-body h3 { font-size: 16.5px; }
+  .gate-yes { color: var(--accent); }
+  .gate-ev {
+    font-size: 14px;
+    color: var(--ink-2);
+    border-top: 1px solid var(--line);
+    padding-top: 11px;
+    margin-bottom: 0;
+  }
+
+  /* ---- decision matrix ---- */
+  .verdict {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    padding: 0;
+    margin: 24px 0;
+  }
+  .verdict-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    border-bottom: 1px solid var(--line);
+  }
+  @media (min-width: 720px) { .verdict-row { grid-template-columns: 210px 1fr 128px; } }
+  .verdict-row:last-child { border-bottom: none; }
+  .verdict-row > div { padding: 15px 17px; }
+  .verdict-cond { font-weight: 620; border-right: 1px solid var(--line); }
+  .verdict-why { color: var(--ink-2); font-size: 14.5px; border-right: 1px solid var(--line); }
+  .verdict-call { display: flex; align-items: flex-start; }
+
+  footer {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line);
+    padding-top: 22px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  footer a { color: var(--muted); }
+  ol.src { font-size: 13px; }
+  ol.src li { margin-bottom: 5px; word-break: break-word; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow">Decision brief &middot; Agent tool access architecture</p>
+    <h1>MCP or a direct API? What the measurements and the threat model actually say.</h1>
+    <p class="standfirst">
+      A benchmark and security review for engineers who have not deployed MCP, written so a
+      skeptic can check every number. The short version: latency is a non-issue, tokens are a
+      minor issue, and the thing that decides it is how many integrations you own and how
+      carefully you curate the tool surface.
+    </p>
+    <div class="mast-meta">
+      <span>435 graded trials</span>
+      <span>26 configurations</span>
+      <span>deepseek-chat</span>
+      <span>$0.99 total spend</span>
+      <span>2026-08-08</span>
+    </div>
+  </header>
+
+  <div class="toc-col">
+    <nav class="toc" aria-label="Contents">
+      <ol>
+        <li><a href="#bottom-line">Bottom line</a></li>
+        <li><a href="#decide">Decide: 3 questions</a></li>
+        <li><a href="#what">What MCP actually is</a></li>
+        <li><a href="#latency">Latency evidence</a></li>
+        <li><a href="#tokens">Token &amp; quality evidence</a></li>
+        <li><a href="#security">Security comparison</a></li>
+        <li><a href="#incidents">Real incidents</a></li>
+        <li><a href="#checklist">Pre-production checklist</a></li>
+        <li><a href="#limits">What this doesn't prove</a></li>
+        <li><a href="#sources">Sources</a></li>
+      </ol>
+    </nav>
+  </div>
+
+  <main>
+
+    <!-- ============================================ -->
+    <section id="bottom-line">
+      <span class="h2num">01</span>
+      <h2>Bottom line</h2>
+
+      <div class="lede">
+        <p>
+          <strong>Protocol choice is not your risk, and it is not your bottleneck.</strong>
+          MCP adds 2 to 4 milliseconds per tool call against model turns measured in seconds,
+          and roughly 2x the tool-schema tokens. Both are small and both are fixable. What
+          actually breaks agents is an <em>uncurated tool surface</em>: when we gave a model a
+          realistically vague request and 54 semantically overlapping tools, wrong-tool calls
+          went from zero to hundreds and task success fell by up to 45 points, in
+          <em>both</em> architectures. What actually breaks security is that MCP introduces a
+          genuinely new injection channel (the tool description, which the model reads and your
+          reviewers do not) plus a credential-aggregation blast radius, on top of the
+          prompt-injection risk every tool-using agent already has.
+        </p>
+        <p>
+          Use a direct API integration when you own fewer than about six agent-system pairs.
+          Use MCP above that, because the cost that dominates is not tokens, it is changing one
+          security policy across thirty bespoke integrations instead of one. Either way, curate
+          the tool surface per task and treat every third-party MCP server as untrusted code.
+        </p>
+      </div>
+
+      <div class="metrics">
+        <div class="metric">
+          <span class="k">Protocol overhead</span>
+          <span class="v">+2.2<span style="font-size:14px"> ms</span></span>
+          <span class="s">MCP over stdio vs direct, pooled session</span>
+        </div>
+        <div class="metric">
+          <span class="k">Remote gateway</span>
+          <span class="v">2.0&times;</span>
+          <span class="s">of one-way RTT, per tool call</span>
+        </div>
+        <div class="metric">
+          <span class="k">Schema tokens</span>
+          <span class="v">2.1&times;</span>
+          <span class="s">2,309 vs 1,080 for identical capability</span>
+        </div>
+        <div class="metric">
+          <span class="k">Unpooled client</span>
+          <span class="v">~300&times;</span>
+          <span class="s">worse than pooled. A bug, not the protocol.</span>
+        </div>
+        <div class="metric">
+          <span class="k">Uncurated surface</span>
+          <span class="v">&minus;45<span style="font-size:14px"> pts</span></span>
+          <span class="s">task success, vague request + similar tools</span>
+        </div>
+      </div>
+
+      <p class="prov">Measured &mdash; benchmark, single model, n stated per result</p>
+      <p class="prov assumed">Modelled &mdash; cost assumptions you should replace with your own</p>
+      <p class="prov judgement">Judgement &mdash; professional opinion, not measurement</p>
+    </section>
+
+    <!-- ============================================ -->
+    <section id="decide">
+      <span class="h2num">02</span>
+      <h2>Decide: three questions, in this order</h2>
+
+      <p>
+        This looks like one decision. It is three, and <strong>"MCP or direct API" is only the
+        second most important of them.</strong> Answer them in order. Do not skip Q1 because it
+        sounds like an implementation detail; it had a larger measured effect than the protocol
+        choice did.
+      </p>
+
+      <div class="gate">
+        <div class="gate-n">Q1</div>
+        <div class="gate-body">
+          <h3 style="margin-top:0">Will one agent see more than about 10 tools?</h3>
+          <p>
+            <strong class="gate-yes">If yes &rarr; filter the tool list per task.</strong>
+            Not optional, and not a protocol question. This applies identically to MCP and to a
+            direct integration.
+          </p>
+          <p class="gate-ev">
+            Measured: curating the surface moved task success from 55% to 80%, tool calls per
+            task from 23.8 to 2.0, and cost per task from $0.0134 to $0.0030. That is a larger
+            swing than anything protocol choice produced. An agent pointed at a whole gateway
+            works fine in a demo and degrades badly on realistically vague requests.
+          </p>
+        </div>
+      </div>
+
+      <div class="gate">
+        <div class="gate-n">Q2</div>
+        <div class="gate-body">
+          <h3 style="margin-top:0">How many (agent &times; system) pairs will you own in 12 months?</h3>
+          <p>
+            <strong class="gate-yes">1 to 5 &rarr; direct API.</strong>
+            <strong class="gate-yes" style="display:block;margin-top:4px">6 or more &rarr; MCP.</strong>
+            <strong class="gate-yes" style="display:block;margin-top:4px">A vendor already ships an MCP server for that system &rarr; MCP, at any count.</strong>
+          </p>
+          <p class="gate-ev">
+            Direct integration is an <code>A &times; S</code> problem; MCP is <code>A + S</code>
+            plus a gateway. Below ~6 pairs the gateway is overhead you do not need. Above it, the
+            cost that compounds is not tokens, it is applying one policy change across N&times;M
+            integrations. If a vendor ships the server your build cost for that system is
+            roughly zero, which beats the arithmetic outright.
+          </p>
+        </div>
+      </div>
+
+      <div class="gate">
+        <div class="gate-n">Q3</div>
+        <div class="gate-body">
+          <h3 style="margin-top:0">Only if you chose MCP: is the loop chatty and the server remote?</h3>
+          <p>
+            <strong class="gate-yes">More than ~10 sequential calls per task over a WAN &rarr; co-locate the server</strong>
+            (sidecar or stdio). Otherwise a central gateway is fine.
+          </p>
+          <p class="gate-ev">
+            Measured: a remote gateway costs <strong>2.0&times; the one-way RTT per tool call</strong>,
+            because a streamable-HTTP call makes two client-facing trips. At a 30 ms hop that is
+            60 ms per call. Under ~10 calls it stays inside the noise of a model turn.
+          </p>
+        </div>
+      </div>
+
+      <h3>Which is better at what</h3>
+      <p>
+        Straight answers. The right-hand column is the one that matters, because most of these
+        margins are real but too small to decide anything.
+      </p>
+
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr><th>Question</th><th>Winner</th><th class="num">Margin</th><th>Should it change your decision?</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Lower latency per call?</td><td><span class="chip flat">Direct</span></td>
+              <td class="num">2&ndash;4 ms</td>
+              <td><strong>No.</strong> Model turns are 800&ndash;5,000 ms.</td>
+            </tr>
+            <tr>
+              <td>Fewer tokens per call?</td><td><span class="chip flat">Direct</span></td>
+              <td class="num">2.1&times;</td>
+              <td><strong>Rarely.</strong> Only at very high request volume.</td>
+            </tr>
+            <tr class="hl">
+              <td>Lower total cost of ownership?</td><td><span class="chip info">MCP</span> above ~6 integrations</td>
+              <td class="num">$94k/yr at 5&times;6</td>
+              <td><strong>Yes. This is the decision.</strong></td>
+            </tr>
+            <tr>
+              <td>Better task success?</td><td><span class="chip ok">Neither</span></td>
+              <td class="num">&mdash;</td>
+              <td><strong>Yes, but the lever is curation</strong> (Q1), not protocol.</td>
+            </tr>
+            <tr>
+              <td>Smaller blast radius if compromised?</td><td><span class="chip flat">Direct</span></td>
+              <td class="num">&mdash;</td>
+              <td><strong>Yes</strong>, if you run third-party servers.</td>
+            </tr>
+            <tr>
+              <td>Easier to enforce one security policy?</td><td><span class="chip info">MCP</span></td>
+              <td class="num">1 vs N&times;M</td>
+              <td><strong>Yes.</strong> Largest cost term at scale.</td>
+            </tr>
+            <tr>
+              <td>Fastest to a working prototype?</td><td><span class="chip flat">Direct</span></td>
+              <td class="num">&mdash;</td>
+              <td><strong>Yes</strong>, for spikes and demos.</td>
+            </tr>
+            <tr>
+              <td>Resistant to prompt injection?</td><td><span class="chip crit">Neither</span></td>
+              <td class="num">identical</td>
+              <td><strong>No.</strong> Same risk either way. Do not pick a protocol for this.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Find your situation</h3>
+
+      <div class="tbl">
+        <table>
+          <thead><tr><th>If this is you</th><th>Use</th><th>Because</th></tr></thead>
+          <tbody>
+            <tr><td>One agent, one API your team owns</td><td><span class="chip flat">Direct</span></td><td>A&times;S = 1. A gateway is pure overhead.</td></tr>
+            <tr><td>Prototype or spike</td><td><span class="chip flat">Direct</span></td><td>Nothing to stand up. Fastest path to working.</td></tr>
+            <tr><td>Customer-facing agent, one backend, very high volume</td><td><span class="chip flat">Direct</span></td><td>Per-call tokens compound; there is no integration sprawl to solve.</td></tr>
+            <tr class="hl"><td>Internal agent needing GitHub + Jira + Slack</td><td><span class="chip info">MCP</span></td><td>Vendors ship those servers. Your build cost is ~0.</td></tr>
+            <tr class="hl"><td>Platform team serving several teams' agents</td><td><span class="chip info">MCP</span></td><td>Textbook A+S vs A&times;S. Not close.</td></tr>
+            <tr><td>Regulated data, real audit requirements</td><td><span class="chip info">MCP</span></td><td>One enforcement and audit chokepoint instead of N&times;M.</td></tr>
+            <tr><td>Community or unvetted servers</td><td><span class="chip crit">Either, isolated</span></td><td>Tool poisoning and supply-chain compromise are documented. Pin, sandbox, never co-load trust levels.</td></tr>
+            <tr><td>Agent with private data + untrusted input + egress</td><td><span class="chip crit">Stop</span></td><td>Lethal trifecta. Remove one leg before choosing any protocol.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Where the count threshold comes from</h3>
+
+      <p class="prov assumed">Modelled &mdash; labour inputs are defaults; replace with yours before quoting a figure</p>
+
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr><th>Agents &times; Systems</th><th class="num">Integrations</th><th>Winner</th><th class="num">Annual delta</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">1 &times; 2</td><td class="num">2 vs 3</td><td><span class="chip flat">direct</span></td><td class="num">$9,111</td></tr>
+            <tr><td class="mono">2 &times; 2</td><td class="num">4 vs 4</td><td><span class="chip flat">direct</span></td><td class="num">$2,951</td></tr>
+            <tr class="hl"><td class="mono">2 &times; 3</td><td class="num">6 vs 5</td><td><span class="chip info">MCP</span></td><td class="num">$3,209</td></tr>
+            <tr><td class="mono">3 &times; 3</td><td class="num">9 vs 6</td><td><span class="chip info">MCP</span></td><td class="num">$13,849</td></tr>
+            <tr><td class="mono">5 &times; 6</td><td class="num">30 vs 11</td><td><span class="chip info">MCP</span></td><td class="num">$93,929</td></tr>
+            <tr><td class="mono">8 &times; 12</td><td class="num">96 vs 20</td><td><span class="chip info">MCP</span></td><td class="num">$364,409</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        The model is symmetric in agents and systems, so the threshold reads the same both ways:
+        one agent needs 8+ systems before MCP pays; two agents need 3+; three or more agents need
+        only 2. And by symmetry, <strong>one system needs about 8 agents.</strong>
+      </p>
+
+      <h3>Building an MCP server for a single application</h3>
+
+      <p>
+        Worth its own answer, because it is the most common concrete case and the intuition
+        ("surely not") is right for the usual reason but wrong about the mechanism.
+      </p>
+
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr><th>Agents on one app</th><th class="num">Integrations</th><th>Winner</th><th class="num">Annual delta</th><th class="num">Policy cost, direct</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">1</td><td class="num">1 vs 2</td><td><span class="chip flat">direct</span></td><td class="num">$10,791</td><td class="num">$1,680</td></tr>
+            <tr><td class="mono">4</td><td class="num">4 vs 5</td><td><span class="chip flat">direct</span></td><td class="num">$5,751</td><td class="num">$6,720</td></tr>
+            <tr><td class="mono">7</td><td class="num">7 vs 8</td><td><span class="chip flat">direct</span></td><td class="num">$711</td><td class="num">$11,760</td></tr>
+            <tr class="hl"><td class="mono">8</td><td class="num">8 vs 9</td><td><span class="chip info">MCP</span></td><td class="num">$969</td><td class="num">$13,440</td></tr>
+            <tr><td class="mono">14</td><td class="num">14 vs 15</td><td><span class="chip info">MCP</span></td><td class="num">$11,049</td><td class="num">$23,520</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Note what is happening. With one system, MCP has <em>more</em> integrations to build at
+        every single row: <code>A + 1</code> always exceeds <code>A</code>. On integration count
+        alone MCP never wins here. It flips at eight agents anyway, and the entire reason is the
+        <strong>governance column</strong>: applying one policy change across eight bespoke
+        integrations costs $13,440 a year against a flat $1,680 at a single chokepoint.
+      </p>
+
+      <div class="note">
+        <p>
+          <strong>The practical rule.</strong> Do not build an MCP server to connect your own
+          agent to your own app. Below roughly eight consuming agents it is strictly more work
+          for a new attack surface and 2.1&times; the schema tokens. Above that, what you
+          actually need is <em>a chokepoint</em>, and MCP is only one way to get one; an API
+          gateway or a thin internal tool-broker gets you the same governance on technology you
+          have already accredited.
+        </p>
+        <p style="margin-top:10px">
+          <strong>The exception is distribution, not integration.</strong> If you are publishing
+          a capability to consumers you do not control, or your users live in an MCP-native host
+          that cannot call your REST API at all, then MCP is a reach decision and the integration
+          arithmetic above does not apply. You are not paying the <code>A</code> side; your
+          consumers are.
+        </p>
+      </div>
+
+      <div class="note">
+        <p>
+          <strong>Be honest about what drives this.</strong> At 5&times;6 the measured token term
+          is $1,991 of a $40,471 MCP bill, about <strong>4.9%</strong>. The benchmark's headline
+          quantity barely matters at scale; the assumed labour rates decide it. If your teams
+          build integrations far faster than 24 hours, or you rarely change policy, the threshold
+          moves up. Run <code>analysis/crossover.py</code> with your own numbers.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <section id="what">
+      <span class="h2num">03</span>
+      <h2>What MCP actually is, if you have never used it</h2>
+
+      <p>
+        An LLM agent calls tools. Something has to tell the model what tools exist (a name, a
+        description, a JSON Schema for the arguments) and something has to execute the call.
+        The two architectures differ in <em>where those two things live</em>.
+      </p>
+
+      <div class="diagram">
+        <svg viewBox="0 0 760 250" role="img" aria-labelledby="dgm-title dgm-desc">
+          <title id="dgm-title">Direct API versus MCP call paths</title>
+          <desc id="dgm-desc">Direct API: agent contains tool schemas and calls the backend in one hop. MCP: agent asks an MCP server for its tool list, then calls through it to the backend, making two hops.</desc>
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <g font-family="ui-monospace, monospace" font-size="12" fill="currentColor">
+
+            <!-- DIRECT -->
+            <text x="0" y="16" font-size="11" letter-spacing="1.4" opacity="0.62">DIRECT API &mdash; 1 HOP</text>
+            <rect x="0" y="30" width="150" height="58" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="12" y="52">Agent</text>
+            <text x="12" y="70" font-size="10.5" opacity="0.66">schemas in source</text>
+
+            <g color="currentColor" opacity="0.85">
+              <line x1="152" y1="59" x2="286" y2="59" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+            </g>
+            <text x="176" y="50" font-size="10.5" opacity="0.66">HTTP</text>
+
+            <rect x="292" y="30" width="150" height="58" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="304" y="52">Backend API</text>
+            <text x="304" y="70" font-size="10.5" opacity="0.66">system of record</text>
+
+            <text x="470" y="52" font-size="11" opacity="0.72">Tool list is compiled in.</text>
+            <text x="470" y="70" font-size="11" opacity="0.72">You write it, per agent.</text>
+
+            <!-- MCP -->
+            <text x="0" y="146" font-size="11" letter-spacing="1.4" opacity="0.62">MCP &mdash; 2 HOPS</text>
+            <rect x="0" y="160" width="150" height="58" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="12" y="182">Agent</text>
+            <text x="12" y="200" font-size="10.5" opacity="0.66">asks for tool list</text>
+
+            <line x1="152" y1="189" x2="286" y2="189" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+            <text x="160" y="180" font-size="10.5" opacity="0.66">JSON-RPC</text>
+
+            <rect x="292" y="160" width="150" height="58" fill="none" stroke="currentColor" stroke-width="2.2"/>
+            <text x="304" y="182">MCP server</text>
+            <text x="304" y="200" font-size="10.5" opacity="0.66">advertises tools</text>
+
+            <line x1="444" y1="189" x2="578" y2="189" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+            <text x="470" y="180" font-size="10.5" opacity="0.66">HTTP</text>
+
+            <rect x="584" y="160" width="150" height="58" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="596" y="182">Backend API</text>
+            <text x="596" y="200" font-size="10.5" opacity="0.66">system of record</text>
+
+            <text x="292" y="238" font-size="11" opacity="0.72">The server decides what the model is told. That channel is the new attack surface.</text>
+          </g>
+        </svg>
+      </div>
+
+      <p>
+        <strong>Direct API.</strong> The tool schemas are source code in your agent. The agent
+        makes one HTTP call to the backend. There is no protocol, no handshake, and no tool
+        discovery. You write and maintain this once per (agent, backend) pair.
+      </p>
+      <p>
+        <strong>MCP.</strong> A separate MCP server advertises the tools over JSON-RPC. Your
+        agent connects, calls <code>initialize</code>, asks for <code>tools/list</code>, and
+        then issues <code>tools/call</code>. The server forwards to the backend. Write the
+        server once and any MCP-speaking agent can use it.
+      </p>
+
+      <div class="note">
+        <p>
+          <strong>A distinction that trips people up.</strong> "Just run MCP locally as tools"
+          is <em>not</em> the same as a direct API integration. Running the MCP server as a
+          local subprocess still speaks the full protocol and still loads the server's tool
+          descriptions. In our measurements the local and remote MCP arms carried the
+          <em>identical</em> 2,309-token schema. Moving MCP closer to your agent fixes latency,
+          which was never the problem. It does nothing about tokens, which were.
+        </p>
+      </div>
+
+      <p>
+        The structural argument for MCP is arithmetic. With <code>A</code> agents and
+        <code>S</code> systems, direct integration is an <code>A &times; S</code> problem and
+        MCP is an <code>A + S</code> problem. That is the whole debate, and it is why the
+        answer depends on your scale rather than on the protocol.
+      </p>
+    </section>
+
+    <!-- ============================================ -->
+    <section id="latency">
+      <span class="h2num">04</span>
+      <h2>Latency: real, small, and mostly a client-configuration story</h2>
+
+      <p class="prov">Measured &mdash; no LLM in the loop, backend latency fixed at 40 ms, jitter 0</p>
+
+      <p>
+        Protocol overhead is isolated by subtracting the backend's self-reported service time
+        from wall clock, so what remains is framing, serialization and transport. Warmup
+        discarded, bootstrap 95% CI on the median.
+      </p>
+
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr><th>Arm</th><th>Transport</th><th class="num">Overhead p50</th><th class="num">p95</th><th class="num">vs direct</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">direct</td><td>in-process HTTP</td><td class="num">1.15 ms</td><td class="num">1.44 ms</td><td class="num">baseline</td></tr>
+            <tr><td class="mono">mcp_stdio</td><td>local subprocess</td><td class="num">3.35 ms</td><td class="num">4.12 ms</td><td class="num">+2.20 ms</td></tr>
+            <tr><td class="mono">mcp_sidecar</td><td>HTTP, same host</td><td class="num">5.00 ms</td><td class="num">6.05 ms</td><td class="num">+3.85 ms</td></tr>
+            <tr><td class="mono">mcp_remote</td><td>HTTP, network</td><td class="num">5.28 ms</td><td class="num">6.64 ms</td><td class="num">+4.13 ms</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Against a model turn of 800 to 5,000 ms, single-digit milliseconds is noise.
+        <strong>The latency objection to MCP does not survive measurement.</strong>
+      </p>
+
+      <h3>But a remote gateway costs two round trips, not one</h3>
+
+      <p>
+        Sweeping an injected one-way delay, with the gateway's own upstream call deliberately
+        exempted so the only thing varying is agent-to-gateway distance:
+      </p>
+
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr><th class="num">Injected delay</th><th class="num">Overhead p50</th><th class="num">Above baseline</th><th class="num">Multiplier</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">0 ms</td><td class="num">6.94 ms</td><td class="num">baseline</td><td class="num">&mdash;</td></tr>
+            <tr><td class="num">10 ms</td><td class="num">26.15 ms</td><td class="num">+19.20 ms</td><td class="num">1.92&times;</td></tr>
+            <tr><td class="num">25 ms</td><td class="num">57.13 ms</td><td class="num">+50.19 ms</td><td class="num">2.01&times;</td></tr>
+            <tr class="hl"><td class="num">50 ms</td><td class="num">106.98 ms</td><td class="num">+100.03 ms</td><td class="num">2.00&times;</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Dead flat at <strong>2.0&times;</strong>, because a streamable-HTTP <code>tools/call</code>
+        makes two client-facing trips. <strong>Take your measured RTT to a central gateway and
+        double it.</strong> At a plausible 30 ms cross-region hop that is 60 ms per call, so a
+        task making eight calls pays half a second in network alone. This is the one place the
+        "deploy MCP closer to your agent" instinct is straightforwardly correct.
+      </p>
+
+      <h3>The number that dwarfs everything else is a client bug</h3>
+
+      <div class="note crit">
+        <p>
+          A client that re-runs <code>initialize</code> and <code>tools/list</code> on every
+          request measured <strong>1,015 ms per call</strong>, against 3.35 ms pooled. That is
+          roughly <strong>300&times;</strong>, and it is a connection-pooling defect, not a
+          property of MCP. If someone tells you MCP was slow in production, check this first.
+        </p>
+        <p style="margin-top:10px">
+          <span class="chip warn">caveat</span> This is a single run at n=40, the smallest
+          sample in the set, and the harness records the handshake once rather than per call,
+          so it understates the true naive cost by about 89 ms. The 230&times; to 317&times;
+          spread depends on which pooled baseline you compare against. Treat "roughly two to
+          three orders of magnitude" as the finding, not the precise ratio.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <section id="tokens">
+      <span class="h2num">05</span>
+      <h2>Tokens and quality: curation beats protocol</h2>
+
+      <p class="prov">Measured &mdash; deepseek-chat, 5 graded tasks, deterministic state-based checkers</p>
+
+      <p>
+        Identical capability over an identical backend. The MCP server costs about twice the
+        schema tokens, purely because a general-purpose server writes descriptions for an
+        unknown consumer while a hand-written integration is tuned for one caller.
+      </p>
+
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr><th>Arm</th><th class="num">Tools</th><th class="num">Schema tokens</th><th class="num">Utilisation</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">direct</td><td class="num">11</td><td class="num">1,080</td><td class="num">24.6%</td></tr>
+            <tr><td class="mono">mcp_sidecar</td><td class="num">11</td><td class="num">2,309</td><td class="num">25.6%</td></tr>
+            <tr class="hl"><td class="mono">mcp_filtered</td><td class="num">4</td><td class="num">1,246</td><td class="num">87.8%</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        <em>Utilisation</em> is the share of loaded schema weight belonging to tools the agent
+        actually called. The complement is context you pay for on every turn and never use.
+      </p>
+
+      <h3>The experiment that changes the recommendation</h3>
+
+      <p>
+        Our first sweeps found that adding up to 150 irrelevant tools cost money and nothing
+        else: success stayed at 100%, and the model never once called a distractor. That result
+        was an artifact. The task prompts named their own domain ("every support ticket that is
+        open and priority P1"), so the model could route on keyword overlap without ever
+        discriminating between similar tools.
+      </p>
+      <p>
+        Rewriting the same tasks the way a person actually asks ("whoever is carrying the pager
+        needs to own everything urgent that hasn't been picked up") while keeping the checker
+        identical produces a completely different picture:
+      </p>
+
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr>
+              <th>Request phrasing</th><th>Extra tools loaded</th>
+              <th class="num">n</th><th class="num">Success</th><th class="num">Wrong-tool calls</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Explicit</td><td>108 near-miss</td><td class="num">10</td><td class="num">100%</td><td class="num">0</td></tr>
+            <tr><td>Explicit</td><td>54 near-miss</td><td class="num">20</td><td class="num">100%</td><td class="num">0</td></tr>
+            <tr><td>Vague</td><td>none</td><td class="num">10</td><td class="num">80%</td><td class="num">3</td></tr>
+            <tr><td>Vague</td><td>54 cross-domain</td><td class="num">10</td><td class="num">60%</td><td class="num">0 distractors</td></tr>
+            <tr class="hl"><td>Vague</td><td>54 near-miss</td><td class="num">30</td><td class="num">60%</td><td class="num">125</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        <strong>It is an interaction, and neither ingredient alone does it.</strong> Similar
+        tools with an explicit request are completely harmless: 100% success and zero wrong
+        calls even at 108 extra tools. A vague request with <em>unrelated</em> tools hurts
+        success but never causes a wrong tool call, so that failure is comprehension, not
+        selection. Only vague requests <em>and</em> semantically overlapping tools produce the
+        wrong-tool explosion. Both are the normal enterprise condition.
+      </p>
+
+      <div class="note">
+        <p>
+          <strong>The failure mode is diagnostic.</strong> The agent calls
+          <code>list_accounts</code>, then <code>list_accounts_v2</code>, <code>v3</code>,
+          <code>v4</code>, <code>v5</code>, shotgunning every near-duplicate because nothing
+          tells it which is authoritative. That is precisely what a gateway fronting six
+          systems that all model "accounts" produces.
+        </p>
+      </div>
+
+      <h3>Under realistic conditions, both unfiltered arms drown</h3>
+
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr><th>Arm</th><th class="num">n</th><th class="num">Success</th><th class="num">Calls / trial</th><th class="num">Wrong-tool calls</th><th class="num">$/task</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">direct</td><td class="num">20</td><td class="num">55%</td><td class="num">23.8</td><td class="num">377</td><td class="num">$0.0134</td></tr>
+            <tr><td class="mono">mcp_sidecar</td><td class="num">30</td><td class="num">60%</td><td class="num">8.9</td><td class="num">125</td><td class="num">$0.0065</td></tr>
+            <tr class="hl"><td class="mono">mcp_filtered</td><td class="num">10</td><td class="num">80%</td><td class="num">2.0</td><td class="num">0</td><td class="num">$0.0030</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Two things worth sitting with. First, <strong><code>direct</code> came out worst.</strong>
+        Its terse hand-written descriptions are cheaper per token but more <em>confusable</em>
+        against a crowded surface, where the MCP server's verbosity buys discrimination. The
+        2.1&times; token premium is not pure waste; part of it is paying for legibility.
+      </p>
+      <p>
+        Second, and importantly for honesty: <strong>the filtered arm's 80% is exactly the
+        vague-phrasing baseline with no distractors at all.</strong> Filtering does not beat the
+        problem, it removes it and returns you to the ceiling set by request ambiguity. That
+        remaining 20% is a comprehension limit no amount of tool curation will fix.
+      </p>
+
+      <div class="note warn">
+        <p>
+          <span class="chip warn">measurement caveat</span> The harness deduplicates the
+          per-trial tool list, so counts of <em>distinct distractor tools touched</em> are exact
+          but counts of distractor <em>invocations</em> are bounded, not precise. The
+          wrong-tool-call totals quoted above are exact (incremented per call). At n=10 to 30,
+          success differences under about 25 points sit inside the Wilson interval. The
+          wrong-tool differences, 0 versus 125 versus 377, do not.
+        </p>
+      </div>
+
+      <h3>Caching helps less than people assume</h3>
+      <p>
+        DeepSeek's automatic prefix cache hit 92 to 96% across the sweep and per-task cost
+        <em>still</em> tripled as tools grew. A high hit rate cuts the marginal rate; it does
+        nothing about sending six times the tokens.
+      </p>
+      <p>
+        There is also a trap worth knowing: prompt caching has a <em>minimum cacheable prefix</em>,
+        and it is not monotonic across model generations. A tight hand-written tool block can be
+        <strong>below the floor and therefore never cacheable</strong>, while the bloated gateway
+        block is the only one large enough to qualify.
+      </p>
+
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Model</th><th class="num">Input $/Mtok</th><th class="num">Min cacheable prefix</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">claude-opus-5</td><td class="num">$5.00</td><td class="num">512</td></tr>
+            <tr><td class="mono">claude-sonnet-5</td><td class="num">$3.00</td><td class="num">1,024</td></tr>
+            <tr class="hl"><td class="mono">claude-haiku-4-5</td><td class="num">$1.00</td><td class="num">4,096</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        The cheapest model has the <em>highest</em> floor: 8&times; the threshold at 1/5 the
+        price. So "route to the cheap model" and "cache the tool block" can be mutually
+        exclusive at small block sizes. The failure is silent, with no error and a cache-creation
+        count that simply stays zero.
+      </p>
+    </section>
+
+    <!-- ============================================ -->
+    <section id="security">
+      <span class="h2num">06</span>
+      <h2>Security: what is genuinely new, and what is not</h2>
+
+      <p>
+        The most common analytical error in this space is attributing generic LLM-agent risk to
+        MCP. Below, risks are separated by what actually changes when you adopt MCP. Getting
+        this wrong in either direction is expensive: it either paralyses an MCP rollout over
+        risks you already carry, or waves through the ones that are genuinely new.
+      </p>
+
+      <h3>Risks that are genuinely new or materially worse with MCP</h3>
+
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr><th>Risk</th><th>Mechanism</th><th>Mitigation</th><th>Severity</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Tool poisoning</strong></td>
+              <td>Malicious instructions embedded in a tool's <em>description</em>. The model reads it as authoritative context; a human reviewing a tool list in a UI may never see it. Demonstrated publicly by Invariant Labs, April 2025, exfiltrating private repo contents with no user interaction.</td>
+              <td>Pin and diff tool definitions; render full descriptions in approval UI; treat descriptions as untrusted input.</td>
+              <td><span class="chip crit">critical</span></td>
+            </tr>
+            <tr>
+              <td><strong>Rug pull</strong></td>
+              <td>A server changes its tool definitions <em>after</em> the user approved them. MCP has no continuous re-verification once trust is extended.</td>
+              <td>Hash tool definitions at approval; alert and re-consent on change; version-pin servers.</td>
+              <td><span class="chip crit">critical</span></td>
+            </tr>
+            <tr>
+              <td><strong>Cross-server shadowing</strong></td>
+              <td>One malicious server's descriptions influence how the agent uses a <em>different</em>, trusted server's tools.</td>
+              <td>Do not co-load servers of differing trust levels in one context; isolate per trust boundary.</td>
+              <td><span class="chip crit">critical</span></td>
+            </tr>
+            <tr>
+              <td><strong>Credential aggregation</strong></td>
+              <td>A gateway holding tokens for many systems turns one compromise into all of them. Direct integrations fail independently.</td>
+              <td>Per-user not per-service tokens; audience-bind tokens; downscope; segment gateways by trust domain.</td>
+              <td><span class="chip crit">critical</span></td>
+            </tr>
+            <tr>
+              <td><strong>Confused deputy</strong></td>
+              <td>MCP proxy with a static upstream client ID plus dynamic client registration plus a consent cookie lets an attacker obtain an auth code without consent. Described normatively in the spec.</td>
+              <td>Spec <strong>MUST</strong>: per-client consent stored server-side, exact redirect-URI matching, single-use <code>state</code> set only after consent.</td>
+              <td><span class="chip crit">critical</span></td>
+            </tr>
+            <tr>
+              <td><strong>Token passthrough</strong></td>
+              <td>Server accepts a token not issued for it and forwards it downstream, bypassing rate limits and destroying the audit trail.</td>
+              <td>Spec <strong>MUST NOT</strong>. Validate the audience claim; use RFC 8693 token exchange.</td>
+              <td><span class="chip crit">critical</span></td>
+            </tr>
+            <tr>
+              <td><strong>Local server compromise</strong></td>
+              <td>Local MCP servers execute with full user privileges. A malicious startup command in a config, or a poisoned package, is arbitrary code execution.</td>
+              <td>Show the exact command before execution; sandbox; prefer stdio over an open local HTTP port.</td>
+              <td><span class="chip crit">critical</span></td>
+            </tr>
+            <tr>
+              <td><strong>SSRF via OAuth discovery</strong></td>
+              <td>A malicious server returns metadata URLs pointing at <code>169.254.169.254</code> or internal services; the client fetches them, leaking cloud credentials.</td>
+              <td>Enforce HTTPS; block private and link-local ranges; validate redirect targets; use an egress proxy.</td>
+              <td><span class="chip warn">high</span></td>
+            </tr>
+            <tr>
+              <td><strong>Dangerous auth URL schemes</strong></td>
+              <td>A server supplies a <code>javascript:</code> authorization URL; a client that opens it via shell or <code>window.open</code> gets XSS, and via a proxy architecture, RCE.</td>
+              <td>Allowlist <code>https:</code> only; never open URLs through a shell.</td>
+              <td><span class="chip warn">high</span></td>
+            </tr>
+            <tr>
+              <td><strong>State handle hijacking</strong></td>
+              <td>MCP is stateless; servers mint handles passed back as ordinary tool arguments. Possession is not authentication.</td>
+              <td>Bind handles server-side to the authenticated user; non-deterministic IDs; expiry.</td>
+              <td><span class="chip warn">high</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Risks that are worse with direct API integration</h3>
+
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Risk</th><th>Mechanism</th><th>Severity</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Credential sprawl</strong></td>
+              <td><code>A &times; S</code> integrations means credentials in many codebases. Rotation and revocation scale with the product, and one forgotten integration keeps a live token.</td>
+              <td><span class="chip warn">high</span></td>
+            </tr>
+            <tr>
+              <td><strong>Authorization drift</strong></td>
+              <td>Each integration implements its own scoping. Least privilege decays independently in each one, and nothing detects the divergence.</td>
+              <td><span class="chip warn">high</span></td>
+            </tr>
+            <tr>
+              <td><strong>Audit fragmentation</strong></td>
+              <td>No chokepoint for tool-invocation logging. Incident reconstruction means correlating across N services with N log formats.</td>
+              <td><span class="chip warn">high</span></td>
+            </tr>
+            <tr>
+              <td><strong>Policy change cost</strong></td>
+              <td>Adding PII redaction or an egress allowlist means touching every integration. In the cost model this is the single largest term at scale.</td>
+              <td><span class="chip warn">medium</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Risks common to both, which MCP is often unfairly blamed for</h3>
+
+      <div class="note crit">
+        <p>
+          <strong>Indirect prompt injection is an agent problem, not an MCP problem.</strong>
+          If a tool returns attacker-controlled text (a ticket body, an email, a web page), that
+          text enters the model's context and is indistinguishable from instructions. This is
+          identical in both architectures. Adopting or avoiding MCP does not change it at all.
+        </p>
+      </div>
+
+      <p>
+        The useful framing here is Simon Willison's <strong>lethal trifecta</strong> (June 2025):
+        risk becomes acute when an agent simultaneously has
+      </p>
+      <ol>
+        <li>access to private data,</li>
+        <li>exposure to untrusted content, and</li>
+        <li>the ability to communicate externally.</li>
+      </ol>
+      <p>
+        Remove any one leg and exfiltration becomes much harder. This is an architectural test
+        you can apply to a design review in about two minutes, and it is protocol-agnostic.
+        Over-broad tool scope and lack of human-in-the-loop on irreversible actions are likewise
+        shared failures.
+      </p>
+    </section>
+
+    <!-- ============================================ -->
+    <section id="incidents">
+      <span class="h2num">07</span>
+      <h2>This is not theoretical</h2>
+
+      <p class="prov judgement">Compiled from public disclosures &mdash; verify each against its primary source before citing</p>
+
+      <p>
+        A selection of publicly disclosed MCP vulnerabilities and incidents. The pattern worth
+        noting: most are <em>classic</em> AppSec failures (command injection, path traversal,
+        missing authn, broken access control) appearing in new infrastructure, not exotic AI
+        attacks.
+      </p>
+
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr><th>Date</th><th class="mono">CVE</th><th>Component</th><th>Impact</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">Apr 2025</td><td class="mono">&mdash;</td><td>WhatsApp MCP</td><td>Tool poisoning exfiltrated entire chat history via hidden instructions</td></tr>
+            <tr><td class="num">May 2025</td><td class="mono">&mdash;</td><td>GitHub MCP Server</td><td>Prompt injection hijacked an over-privileged PAT; private repo contents leaked</td></tr>
+            <tr><td class="num">Jun 2025</td><td class="mono">CVE-2025-49596</td><td>Anthropic MCP Inspector</td><td>Unauthenticated RCE; filesystem, API keys, env secrets exposed</td></tr>
+            <tr><td class="num">Jun 2025</td><td class="mono">&mdash;</td><td>Asana MCP Server</td><td>Access-control flaw caused cross-tenant data visibility</td></tr>
+            <tr class="hl"><td class="num">Jul 2025</td><td class="mono">CVE-2025-6514</td><td>mcp-remote</td><td>OS command injection, CVSS 9.6; RCE on client. 437,000+ downloads affected</td></tr>
+            <tr><td class="num">Aug 2025</td><td class="mono">CVE-2025-53109/53110</td><td>Anthropic Filesystem MCP</td><td>Sandbox escape and symlink bypass; arbitrary file access and code execution</td></tr>
+            <tr><td class="num">Sep 2025</td><td class="mono">CVE-2025-59528</td><td>Flowise</td><td>stdio transport design flaw; access to <code>child_process</code>, full compromise</td></tr>
+            <tr><td class="num">Sep 2025</td><td class="mono">&mdash;</td><td>Malicious Postmark MCP</td><td>BCC injection silently exfiltrated all email traffic</td></tr>
+            <tr><td class="num">Oct 2025</td><td class="mono">&mdash;</td><td>Smithery MCP hosting</td><td>Path traversal leaked a token controlling 3,000+ apps</td></tr>
+            <tr><td class="num">Feb 2026</td><td class="mono">&mdash;</td><td>Oura MCP (cloned)</td><td>Trojanized package distributing credential-stealing malware</td></tr>
+            <tr><td class="num">Mar 2026</td><td class="mono">CVE-2026-33032</td><td>nginx-ui</td><td>Unauthenticated command execution, CVSS 9.8; 2,600+ exposed instances</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note warn">
+        <p>
+          The operational lesson for a security team: <strong>an MCP server is a network service
+          and a supply-chain dependency at the same time.</strong> It deserves the same scrutiny
+          you would give any internet-facing daemon plus the same scrutiny you would give any
+          npm package running with your engineers' credentials. Most of the list above would
+          have been caught by existing AppSec practice applied to new infrastructure.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <section id="checklist">
+      <span class="h2num">08</span>
+      <h2>Pre-production checklist</h2>
+
+      <p class="prov judgement">Judgement &mdash; derived from the spec's normative requirements and the incident record</p>
+
+      <h4>Must be true before production</h4>
+      <ul>
+        <li><strong>Curate the tool surface per task.</strong> Never point an agent at an entire gateway because it happens to work. Measured: this dominated every other variable.</li>
+        <li><strong>Apply the lethal-trifecta test.</strong> If an agent has private data, untrusted input and an egress path simultaneously, remove one leg or accept that exfiltration is achievable.</li>
+        <li><strong>Validate token audience.</strong> Never accept a token not issued for your server, and never forward it downstream. This is a spec <code>MUST NOT</code>.</li>
+        <li><strong>Per-client consent before third-party auth</strong>, with exact redirect-URI matching and single-use <code>state</code> set only after approval.</li>
+        <li><strong>Human-in-the-loop on irreversible actions.</strong> Gate by reversibility and blast radius, not by how "important" the tool sounds.</li>
+        <li><strong>No secrets in model context.</strong> Inject at the egress boundary so the sandbox and transcript never see the real value.</li>
+        <li><strong>Pin third-party server versions</strong> and review the diff. Treat every server as code running with your credentials, because it is.</li>
+      </ul>
+
+      <h4>Hardening</h4>
+      <ul>
+        <li>Hash tool definitions at approval and alert on change (rug-pull detection).</li>
+        <li>Render full, untruncated tool descriptions in any approval UI (tool-poisoning detection).</li>
+        <li>Egress allowlist per credential, so a stolen token cannot be sent anywhere.</li>
+        <li>Block private and link-local IP ranges on any URL the client fetches (SSRF).</li>
+        <li>Allowlist <code>https:</code> for auth URLs; never open a URL through a shell.</li>
+        <li>Bind session and state handles server-side to the authenticated user.</li>
+        <li>Log every tool call with caller identity, arguments and outcome, at the gateway.</li>
+        <li>Sandbox local MCP servers; prefer stdio over an open localhost HTTP port.</li>
+        <li>Do not co-load servers of different trust levels into one agent context.</li>
+        <li>Scope minimisation: start with read-only, elevate on demand rather than granting a full catalog up front.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================ -->
+    <section id="limits">
+      <span class="h2num">09</span>
+      <h2>What this evidence does not establish</h2>
+
+      <p>
+        Stated plainly, because a brief that only lists its confirmations is a marketing asset.
+      </p>
+      <ul>
+        <li><strong>One model.</strong> Every agentic result is <code>deepseek-chat</code>. Tool-selection behaviour is model-specific and will not transfer across families. Rerun the sweep on what you deploy.</li>
+        <li><strong>Small samples.</strong> n=10 to 30 per cell. Success differences under roughly 25 points are inside the Wilson interval. The wrong-tool differences are far larger than that and are safe to rely on.</li>
+        <li><strong>Five tasks, one synthetic domain.</strong> No pagination, no partial failures, no long-running jobs, no streaming payloads.</li>
+        <li><strong>Lab network.</strong> No mTLS, no service mesh, no cross-AZ hop. The netem multiplier (2.0&times;) should transfer; the absolute milliseconds should not.</li>
+        <li><strong>Cost inputs are assumed.</strong> Only the token delta is measured. Build hours, maintenance hours and policy-change frequency are defaults.</li>
+        <li><strong>Security content is a literature and spec review, not a penetration test.</strong> Nothing here was exploited in a lab. Verify each CVE against its primary source before citing it.</li>
+        <li><strong>Blast radius is unmeasured</strong> and cuts against MCP. A shared gateway is a shared failure domain; the benchmark says nothing about it.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================ -->
+    <section id="sources">
+      <span class="h2num">10</span>
+      <h2>Sources</h2>
+      <ol class="src">
+        <li><a href="https://modelcontextprotocol.io/docs/tutorials/security/security_best_practices">MCP Specification &mdash; Security Best Practices</a> (confused deputy, token passthrough, SSRF, state handle hijacking, local server compromise, OAuth URL validation, scope minimisation)</li>
+        <li><a href="https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks">Invariant Labs &mdash; MCP Security Notification: Tool Poisoning Attacks</a></li>
+        <li><a href="https://github.com/invariantlabs-ai/mcp-injection-experiments">invariantlabs-ai/mcp-injection-experiments</a> (reproduction code)</li>
+        <li><a href="https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/">Simon Willison &mdash; The lethal trifecta for AI agents</a></li>
+        <li><a href="https://authzed.com/blog/timeline-mcp-breaches">Authzed &mdash; A Timeline of MCP Security Breaches</a> (incident table)</li>
+        <li><a href="https://cymulate.com/blog/cve-2025-53109-53110-escaperoute-anthropic/">Cymulate &mdash; EscapeRoute (CVE-2025-53109, CVE-2025-53110)</a></li>
+        <li><a href="https://www.cyberark.com/resources/threat-research-blog/poison-everywhere-no-output-from-your-mcp-server-is-safe">CyberArk &mdash; Poison everywhere: no output from your MCP server is safe</a></li>
+        <li><a href="https://arxiv.org/pdf/2508.14925">MCPTox: A Benchmark for Tool Poisoning Attack on Real-World MCP Servers</a></li>
+        <li><a href="https://www.wiz.io/academy/ai-security/model-context-protocol-security">Wiz &mdash; Understanding Model Context Protocol Security</a></li>
+        <li><a href="https://vulnerablemcp.info/">The Vulnerable MCP Project</a> (vulnerability database)</li>
+      </ol>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>
+      Benchmark harness, raw JSONL results and methodology: <code>mcp-vs-api-bench</code>.
+      Performance figures are reproducible with <code>make micro</code> and
+      <code>make agentic</code>; the cost model is <code>analysis/crossover.py</code>.
+      Security section is a spec and literature review, not original vulnerability research.
+    </p>
+  </footer>
+
+</div>

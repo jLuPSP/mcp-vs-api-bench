@@ -1,0 +1,29 @@
+# Homelab / local-network private — never commit
+unraid.env
+.env
+.env.*
+!.env.example
+!*.env.example
+*.local
+*.local.*
+private/
+secrets/
+CLAUDE.local.md
+
+# Local run output. Churns on every run, so it stays out of git.
+results/
+
+# RESULTS.md and results-reference/ ARE committed. A benchmark that ships without the
+# data behind its claims is a press release; shipping the raw JSONL is what lets someone
+# disagree with a specific number instead of the whole thing.
+# Refresh with: python -m scripts.export_reference_results && python -m bench.cli report
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/

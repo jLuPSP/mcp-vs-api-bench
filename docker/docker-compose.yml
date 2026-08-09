@@ -1,0 +1,77 @@
+name: mcp-vs-api-bench
+
+# Local stack. One backend, two MCP servers over HTTP: a sidecar with no injected delay
+# and a "remote" with a tc netem delay standing in for a network hop. The stdio arm needs
+# nothing here; the harness spawns it as a subprocess.
+#
+# Sweep the remote delay with:  NETEM_DELAY=100ms docker compose up -d --force-recreate mcp-remote
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: bench-backend
+    command: python -m bench.backend.app
+    environment:
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: "9110"
+      BENCH_SEED: "${BENCH_SEED:-1729}"
+      BACKEND_LATENCY_MS: "${BACKEND_LATENCY_MS:-40}"
+      BACKEND_JITTER_MS: "${BACKEND_JITTER_MS:-0}"
+      # 1 = pad records with the fields a real system of record returns (SLA state, custom
+      # fields, linked records). Required to reproduce the published three-arm table.
+      BENCH_ENTERPRISE: "${BENCH_ENTERPRISE:-0}"
+    ports:
+      - "9110:9110"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9110/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [benchnet]
+
+  mcp-sidecar:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: bench-mcp-sidecar
+    command: python -m bench.mcpserver.server --transport http --host 0.0.0.0 --port 9111
+    environment:
+      BACKEND_URL: http://backend:9110
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "9111"
+    ports:
+      - "9111:9111"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [benchnet]
+
+  mcp-remote:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: bench-mcp-remote
+    # NET_ADMIN is required for tc. The entrypoint exits non-zero if it cannot apply the
+    # delay, so a misconfigured container fails loudly instead of quietly reporting
+    # "remote MCP costs nothing".
+    cap_add: [NET_ADMIN]
+    entrypoint: ["/usr/local/bin/netem-entrypoint.sh"]
+    command: python -m bench.mcpserver.server --transport http --host 0.0.0.0 --port 9112
+    environment:
+      BACKEND_URL: http://backend:9110
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "9112"
+      # Default 0 so `make stack-up` reproduces the published protocol-overhead table,
+      # which has no injected delay. The netem sweep sets this explicitly per step.
+      NETEM_DELAY: "${NETEM_DELAY:-0}"
+    ports:
+      - "9112:9112"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [benchnet]
+
+networks:
+  benchnet: {}
