@@ -62,7 +62,7 @@ Identical eleven capabilities over the identical backend:
 
 | arm | tools | schema tokens | utilisation |
 |---|---:|---:|---:|
-| `direct` (hand-written) | 11 | 1,080 | 24.6% |
+| `direct` (hand-written) | 11 | 1,080 | 25.2% |
 | `mcp_sidecar` (server-advertised) | 11 | 2,309 | 25.6% |
 | `mcp_filtered` (per-task subset) | 1 to 4 | 1,246 | 87.8% |
 
@@ -85,7 +85,7 @@ checkers:
 
 | request | tools loaded | n | success | wrong-tool calls per task |
 |---|---|---:|---:|---:|
-| explicit | none | 30 | 100% | 0.2 |
+| explicit | none | 40 | 100% | 0.2 |
 | explicit | 54 near-miss | 20 | 100% | 0 |
 | explicit | 108 near-miss | 10 | 100% | 0.1 |
 | vague | none | 10 | 80% | 0.1 |

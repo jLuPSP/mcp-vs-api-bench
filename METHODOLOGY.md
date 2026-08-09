@@ -216,7 +216,7 @@ different questions:
 
 | Phrasing | Distractors | n | Success | Wrong-tool /task | Wrong-tool rate |
 |---|---|---:|---:|---:|---:|
-| explicit | none | 30 | 100% | 0.2 | 7.1% |
+| explicit | none | 40 | 100% | 0.2 | 7.1% |
 | explicit | 54 near-miss | 20 | 100% | 0.0 | 0.0% |
 | explicit | 108 near-miss | 10 | 100% | 0.1 | 3.6% |
 | vague | none | 10 | 80% | 0.1 | 3.3% |
