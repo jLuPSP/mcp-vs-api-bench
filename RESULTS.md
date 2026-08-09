@@ -53,7 +53,7 @@ Provider `deepseek`, model `deepseek-chat`, 2 repeats over 5 tasks (n=10 per arm
 
 > The success intervals above are roughly 52.7% wide. Any difference between arms smaller than that is noise at this sample size, not a finding. Increase `--repeats` before drawing a conclusion from it.
 
-> **Two things to know before quoting this table.** It is one run at n=10 per arm; the README pools every run at this configuration (`direct` n=20, `mcp_sidecar` n=30, `mcp_filtered` n=10), which is why its figures read 55% / 23.8 calls and 60% / 8.9 rather than the 50% / 21.9 and 60% / 9.4 here. Same underlying data, different pooling, and the README's is the one to quote. The wrong-tool column here is a **percentage of all tool calls**; the README and the writeup report the same metric as **calls per task** (78.1% is 18.9 per task, 51.1% is 4.2, 0.0% is 0).
+> **Two things to know before quoting this table.** It reports a single run. The README pools every run at the same configuration, so its figures differ from these while resting on the same underlying trials, and the README's are the ones to quote. The wrong-tool column here is a **percentage of all tool calls**; the README and the writeup report the same metric as **calls per task**.
 
 ### Outcome breakdown
 

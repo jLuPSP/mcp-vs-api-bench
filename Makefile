@@ -1,4 +1,4 @@
-.PHONY: help install stack-up stack-down stack-logs micro micro-naive agentic sweep sweep-hard headline cache report validate pricing crossover netem-sweep test reproduce export-results clean
+.PHONY: help install stack-up stack-down stack-logs micro micro-naive agentic sweep sweep-hard lean headline cache report validate pricing crossover netem-sweep test reproduce export-results clean
 
 PY       ?= python
 COMPOSE  ?= docker compose -f docker/docker-compose.yml
@@ -24,6 +24,7 @@ help:
 	@echo "  micro-naive    same, re-handshaking per call (the ~300x result)"
 	@echo "  netem-sweep    the 2.0x RTT multiplier, at $(DELAYS)"
 	@echo "  headline       the three-arm realistic-conditions table (COSTS MONEY)"
+	@echo "  lean           single-agent baseline, no distractors (COSTS MONEY)"
 	@echo "  sweep-hard     vague + near-miss degradation sweep (COSTS MONEY)"
 	@echo ""
 	@echo "ANALYSIS"
@@ -87,6 +88,16 @@ headline:
 		--arms direct,mcp_sidecar,mcp_filtered \
 		--phrasing vague --kind near_miss --distractors 54 --repeats $(REPEATS)
 
+# The lean baseline: same vague phrasing and same payload weight as `headline`, but with
+# no distractors. Isolates the tool list as the only variable against that table, and is
+# the single-agent case. Costs roughly $0.11 on deepseek-chat.
+lean:
+	BENCH_ENTERPRISE=1 $(COMPOSE) up -d --force-recreate backend >/dev/null
+	@sleep 4
+	$(PY) -m bench.cli agentic --provider $(PROVIDER) \
+		--arms direct,mcp_sidecar,mcp_filtered \
+		--phrasing vague --distractors 0 --repeats $(REPEATS)
+
 # The degradation sweep. Vague phrasing + near-miss tools is the condition that
 # reproduces tool-selection failure; either alone will not.
 sweep-hard:
@@ -118,7 +129,7 @@ export-results:
 	$(PY) -m scripts.export_reference_results
 	$(PY) -m bench.cli report \
 		--results-dir results-reference \
-		--micro-file results-reference/micro-20260808T011122Z.jsonl \
+		--micro-file results-reference/micro-20260808T010052Z.jsonl \
 		--agentic-file results-reference/agentic-20260808T054605Z.jsonl
 
 clean:

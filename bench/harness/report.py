@@ -202,6 +202,15 @@ def agentic_section(rows: list[dict[str, Any]]) -> str:
             "not a finding. Increase `--repeats` before drawing a conclusion from it."
         )
         out.append("")
+        out.append(
+            "> **Two things to know before quoting this table.** It reports a single run. "
+            "The README pools every run at the same configuration, so its figures differ "
+            "from these while resting on the same underlying trials, and the README's are "
+            "the ones to quote. The wrong-tool column here is a **percentage of all tool "
+            "calls**; the README and the writeup report the same metric as **calls per "
+            "task**."
+        )
+        out.append("")
 
     out.append("### Outcome breakdown")
     out.append("")

@@ -166,7 +166,19 @@ Listed in rough order of how much they should worry you.
    reasoning. It does not exercise streaming, large binary payloads, long-running jobs, or
    pagination-heavy retrieval, all of which have different protocol overhead profiles.
 
-8. **Distractor-invocation counts are bounded, not exact.** The harness stores
+8. **`BENCH_ENTERPRISE` is not recorded in result files.** The backend's payload weight is
+   set by a backend-side environment variable, and `bench/config.py` captures only
+   client-side config, so a results file does not say which regime produced it. This
+   matters because the flag is deliberately adverse to the token findings (see the comment
+   at `bench/backend/app.py`): compact results make the schema block dominate and the
+   MCP-vs-direct delta look decisive, while realistic fat results shrink it as a share of
+   the bill. The backend does report the flag on `GET /healthz` as `enterprise_records`,
+   so the harness could capture it at run start and should. Until it does, treat any
+   comparison that spans run series as possibly spanning regimes, and prefer comparisons
+   within a single run. The lean-vs-headline comparison above is deliberately run under
+   matched conditions for this reason.
+
+9. **Distractor-invocation counts are bounded, not exact.** The harness stores
    `called_tools` deduplicated per trial (`bench/harness/agentic.py`), so a distractor
    called five times within one trial counts once. Any figure phrased as "distractor
    calls" is therefore a lower bound on invocations and an exact count of *distinct
@@ -251,6 +263,28 @@ counter, which reads 125 calls across the 30 trials at 54 near-miss distractors.
 **Neither factor alone produces the effect.** Similar tools under an explicit prompt are
 harmless. A vague prompt with unrelated tools degrades success while leaving tool choice
 intact, at 0.3 wrong calls per task against 4.2. Both have to be present.
+
+**The lean baseline, added after the fact to close a gap.** The tables above sweep
+`mcp_sidecar` almost exclusively; `direct` was originally run in only two configurations,
+`explicit/0` and `vague/54`. That left the single-agent case unmeasured, which is the case
+most readers are actually in, and it meant the headline table's `direct` row was carrying
+54 tools it did not need without that being stated. `make lean` fills it, at the same
+phrasing and payload weight as `make headline` so the tool list is the only variable:
+
+| arm | phrasing | distractors | n | Success | Calls/task | Wrong-tool /task | $/task |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `direct` | vague | 0 | 10 | 70% | 3.8 | 0.0 | $0.0032 |
+| `mcp_sidecar` | vague | 0 | 10 | 80% | 3.2 | 0.0 | $0.0040 |
+| `mcp_filtered` | vague | 0 | 10 | 60% | 4.0 | 0.0 | $0.0040 |
+
+Every arm records **zero** wrong-tool calls. Against `direct` at `vague/54` (18.9 per task)
+this is the cleanest isolation of the headline in the repo: same arm, same phrasing, same
+payload weight, only the tool list differs. The success column spans 60 to 80 at n=10 and
+is not a ranking. Source: `results-reference/agentic-20260809T193709Z.jsonl`.
+
+This also bounds finding 4. `direct` losing the three-arm table is a statement about a
+crowded tool surface, not about hand-written integrations generally. On a lean list the
+three arms are indistinguishable and `direct` is the cheapest of them.
 
 The `vague / none` row is the one to hold onto when reading the filtered arm elsewhere: 80%
 is the ceiling that request ambiguity alone imposes, and filtering the tool list returns

@@ -2,14 +2,19 @@
 
 A benchmark that answers, with numbers, whether an agent should use MCP or just call the
 API directly, and if it uses MCP, where the server should sit. One backend, five
-tool-access layers, 265 graded trials on a real model, under a dollar of spend. A further
-170 trials drive a scripted stub instead of a model to check the harness itself; no
+tool-access layers, 295 graded trials on a real model, about $1.10 of spend. A further
+190 trials drive a scripted stub instead of a model to check the harness itself; no
 model-behaviour result below rests on those.
 
 **Protocol choice is the second decision. Curating the tool list is the first.** MCP costs
 2.2 to 4.1 ms per call and about twice the schema tokens. Both are small and both are
 fixable. The thing that broke agents here was a large, overlapping tool surface, and it
 hurt the direct integration worse than it hurt MCP.
+
+**If you run one agent against one system, use the API directly.** On a lean tool list all
+three architectures are indistinguishable and none of them makes a wrong tool call, so the
+protocol is not buying you anything (finding 4a). The case for MCP is integration count,
+not per-request behaviour.
 
 ![Decision flowchart. First gate, applying to both architectures: load only the tools the task needs. Then branch on agent times system count: under about six pairs use a direct API, six or more use MCP, and take a vendor-shipped MCP server at any count. Under MCP, co-locate as stdio or a sidecar when a task makes more than about ten calls over a WAN, otherwise a central gateway is fine.](docs/img/decision.svg)
 
@@ -112,6 +117,31 @@ into the *relevant* tool set, and none of the 54 loaded distractors was ever inv
 make sweep-hard     # vague + near-miss, the degradation above
 ```
 
+### 4a. On a lean tool list, the protocol question is moot
+
+Vague requests, **no distractors loaded**, enterprise-weight payloads. This is the
+single-agent case: eleven tools, all of them plausibly relevant, hand-wired or served,
+requests worded the way a person actually asks.
+
+| arm | n | success | calls/task | wrong-tool calls/task | $/task |
+|---|---:|---:|---:|---:|---:|
+| `direct` | 10 | 70% | 3.8 | 0.0 | $0.0032 |
+| `mcp_sidecar` | 10 | 80% | 3.2 | 0.0 | $0.0040 |
+| `mcp_filtered` | 10 | 60% | 4.0 | 0.0 | $0.0040 |
+
+All three are inside each other's Wilson intervals at n=10, so the success column is not a
+ranking. **Zero wrong-tool calls in every arm** is the result. Curation removes the
+tool-selection failure mode outright, for the hand-written integration as much as for MCP.
+Vague phrasing still costs success (100% under explicit phrasing, 60 to 80% here), and no
+architecture touches that.
+
+`direct` is also the cheapest arm here. If you run one agent against one system whose API
+you already know, this benchmark gives you no reason to put MCP in front of it.
+
+```bash
+make lean           # this table, roughly $0.11 on deepseek-chat
+```
+
 ### 4. Under realistic conditions, curation beats protocol
 
 Vague requests, 54 near-miss tools, enterprise-weight payloads:
@@ -136,6 +166,18 @@ the phrasing, and no protocol choice touches it.
 
 Cost per task falls by half against the sidecar and 4x against direct. Call volume dropping
 from 8.9 to 3.1 drives most of that, with the smaller schema block second.
+
+Holding the arm and the phrasing fixed and varying only the tool list isolates the effect
+better than any cross-arm comparison here, because nothing else changes:
+
+| `direct`, vague phrasing | success | calls/task | wrong-tool calls/task | $/task |
+|---|---:|---:|---:|---:|
+| lean tool list (11) | 70% | 3.8 | 0.0 | $0.0032 |
+| 54 near-miss loaded (65) | 55% | 23.8 | 18.9 | $0.0134 |
+
+Zero wrong calls to 18.9, six times the call volume, four times the cost. The success delta
+is inside the noise; the other three columns are not. This is the cleanest statement of the
+headline in the repo, and it is the hand-written arm, so it is not a protocol result.
 
 ```bash
 make headline       # costs ~$0.30 on deepseek-chat
