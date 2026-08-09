@@ -1,0 +1,14 @@
+# Normalise text in the repo, but force LF on anything a Linux container executes.
+# A CRLF shebang fails inside the image with "bad interpreter: /bin/sh^M", which is a
+# confusing way to discover your benchmark stack will not start.
+* text=auto
+
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+Makefile        text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+
+# Results are generated data. Keep them byte-stable so a re-export produces a clean diff
+# rather than a whole-file line-ending change.
+*.jsonl         text eol=lf
