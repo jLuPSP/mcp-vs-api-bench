@@ -264,27 +264,31 @@ counter, which reads 125 calls across the 30 trials at 54 near-miss distractors.
 harmless. A vague prompt with unrelated tools degrades success while leaving tool choice
 intact, at 0.3 wrong calls per task against 4.2. Both have to be present.
 
-**The lean baseline, added after the fact to close a gap.** The tables above sweep
-`mcp_sidecar` almost exclusively; `direct` was originally run in only two configurations,
-`explicit/0` and `vague/54`. That left the single-agent case unmeasured, which is the case
-most readers are actually in, and it meant the headline table's `direct` row was carrying
-54 tools it did not need without that being stated. `make lean` fills it, at the same
-phrasing and payload weight as `make headline` so the tool list is the only variable:
+**The lean baseline, added after the fact to close a gap.** `direct` had originally been run
+in only two configurations, `explicit/0` and `vague/54`, leaving the single-agent case
+unmeasured and the headline table's `direct` row silently carrying 54 tools it did not
+need. `make lean` fills it at the same phrasing and payload weight as `make headline`, so
+the tool list is the only variable. Source:
+`results-reference/agentic-20260809T193709Z.jsonl`.
 
-| arm | phrasing | distractors | n | Success | Calls/task | Wrong-tool /task | $/task |
-|---|---|---:|---:|---:|---:|---:|---:|
-| `direct` | vague | 0 | 10 | 70% | 3.8 | 0.0 | $0.0032 |
-| `mcp_sidecar` | vague | 0 | 10 | 80% | 3.2 | 0.0 | $0.0040 |
-| `mcp_filtered` | vague | 0 | 10 | 60% | 4.0 | 0.0 | $0.0040 |
+| arm | phrasing | distractors | n | Success | Turns | Calls/task | Wrong-tool /task | Wall/task | $/task |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `direct` | vague | 0 | 10 | 70% | 2.9 | 3.8 | 0.0 | 7.0 s | $0.0032 |
+| `mcp_sidecar` | vague | 0 | 10 | 80% | 3.0 | 3.2 | 0.0 | 6.9 s | $0.0040 |
+| `mcp_filtered` | vague | 0 | 10 | 60% | 2.8 | 4.0 | 0.0 | 7.2 s | $0.0040 |
 
-Every arm records **zero** wrong-tool calls. Against `direct` at `vague/54` (18.9 per task)
-this is the cleanest isolation of the headline in the repo: same arm, same phrasing, same
-payload weight, only the tool list differs. The success column spans 60 to 80 at n=10 and
-is not a ranking. Source: `results-reference/agentic-20260809T193709Z.jsonl`.
+Zero wrong-tool calls in every arm; success spans 60 to 80 at n=10 and is not a ranking.
+This bounds finding 4: `direct` losing the three-arm table describes a crowded tool
+surface, and says nothing about hand-written integrations on a lean one.
 
-This also bounds finding 4. `direct` losing the three-arm table is a statement about a
-crowded tool surface, not about hand-written integrations generally. On a lean list the
-three arms are indistinguishable and `direct` is the cheapest of them.
+**Turn inflation is the dominant latency term.** Wall clock per task, `direct` under vague
+phrasing, is 7.0 s on a lean list and 29.1 s at 54 near-miss distractors, with turns going
+2.9 to 6.8 and one of 20 runs exhausting the 12-turn cap. Of that 29.1 s, 28.9 s is model
+time and 0.3 s is tool time; protocol overhead is roughly 90 ms inside the latter. The
+protocol tables in finding 1 therefore measure the smallest term in end-to-end latency by
+three orders of magnitude. Under vague phrasing turns rise monotonically with near-miss
+count (3.0 / 3.3 / 3.8 / 4.3 at 0 / 18 / 54 / 108); under explicit phrasing they stay flat
+at 2.6 to 2.8 from 0 to 150, so this is the finding-3 interaction again.
 
 The `vague / none` row is the one to hold onto when reading the filtered arm elsewhere: 80%
 is the ceiling that request ambiguity alone imposes, and filtering the tool list returns

@@ -119,24 +119,17 @@ make sweep-hard     # vague + near-miss, the degradation above
 
 ### 4a. On a lean tool list, the protocol question is moot
 
-Vague requests, **no distractors loaded**, enterprise-weight payloads. This is the
-single-agent case: eleven tools, all of them plausibly relevant, hand-wired or served,
-requests worded the way a person actually asks.
+Vague requests, **no distractors loaded**, enterprise-weight payloads. The single-agent
+case: eleven tools, all plausibly relevant.
 
-| arm | n | success | calls/task | wrong-tool calls/task | $/task |
-|---|---:|---:|---:|---:|---:|
-| `direct` | 10 | 70% | 3.8 | 0.0 | $0.0032 |
-| `mcp_sidecar` | 10 | 80% | 3.2 | 0.0 | $0.0040 |
-| `mcp_filtered` | 10 | 60% | 4.0 | 0.0 | $0.0040 |
+| arm | n | success | turns | calls/task | wrong-tool calls/task | wall/task | $/task |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `direct` | 10 | 70% | 2.9 | 3.8 | 0.0 | 7.0 s | $0.0032 |
+| `mcp_sidecar` | 10 | 80% | 3.0 | 3.2 | 0.0 | 6.9 s | $0.0040 |
+| `mcp_filtered` | 10 | 60% | 2.8 | 4.0 | 0.0 | 7.2 s | $0.0040 |
 
-All three are inside each other's Wilson intervals at n=10, so the success column is not a
-ranking. **Zero wrong-tool calls in every arm** is the result. Curation removes the
-tool-selection failure mode outright, for the hand-written integration as much as for MCP.
-Vague phrasing still costs success (100% under explicit phrasing, 60 to 80% here), and no
-architecture touches that.
-
-`direct` is also the cheapest arm here. If you run one agent against one system whose API
-you already know, this benchmark gives you no reason to put MCP in front of it.
+Zero wrong-tool calls in every arm. All three sit inside each other's Wilson intervals at
+n=10, so the success column is not a ranking. `direct` is the cheapest.
 
 ```bash
 make lean           # this table, roughly $0.11 on deepseek-chat
@@ -167,17 +160,23 @@ the phrasing, and no protocol choice touches it.
 Cost per task falls by half against the sidecar and 4x against direct. Call volume dropping
 from 8.9 to 3.1 drives most of that, with the smaller schema block second.
 
-Holding the arm and the phrasing fixed and varying only the tool list isolates the effect
-better than any cross-arm comparison here, because nothing else changes:
+Holding arm and phrasing fixed and varying only the tool list isolates the effect, since
+nothing else changes:
 
-| `direct`, vague phrasing | success | calls/task | wrong-tool calls/task | $/task |
-|---|---:|---:|---:|---:|
-| lean tool list (11) | 70% | 3.8 | 0.0 | $0.0032 |
-| 54 near-miss loaded (65) | 55% | 23.8 | 18.9 | $0.0134 |
+| `direct`, vague phrasing | success | turns | calls/task | wrong-tool calls/task | wall/task | turn_cap | $/task |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| lean tool list (11) | 70% | 2.9 | 3.8 | 0.0 | 7.0 s | 0/10 | $0.0032 |
+| 54 near-miss loaded (65) | 55% | 6.8 | 23.8 | 18.9 | 29.1 s | 1/20 | $0.0134 |
 
-Zero wrong calls to 18.9, six times the call volume, four times the cost. The success delta
-is inside the noise; the other three columns are not. This is the cleanest statement of the
-headline in the repo, and it is the hand-written arm, so it is not a protocol result.
+Zero wrong calls to 18.9, and 7 s to 29 s. **Turn inflation is the dominant latency term in
+this benchmark**, roughly 22,000 ms against the 4 ms that separates the protocols. Of that
+29.1 s, 28.9 s is model time and 0.3 s is tool time, and protocol overhead is about 90 ms
+inside that 0.3 s. One of the 20 runs exhausted the 12-turn cap and never finished.
+
+Turn count under vague phrasing rises monotonically with near-miss count (3.0 / 3.3 / 3.8 /
+4.3 turns and 6.9 / 9.7 / 10.9 / 12.0 s at 0 / 18 / 54 / 108). Under explicit phrasing it
+stays flat at 2.6 to 2.8 turns from 0 to 150 distractors, so this is the same two-condition
+interaction as finding 3.
 
 ```bash
 make headline       # costs ~$0.30 on deepseek-chat
