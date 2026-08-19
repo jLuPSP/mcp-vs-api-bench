@@ -6,6 +6,14 @@ tool-access layers, 295 graded trials on a real model, about $1.10 of spend. A f
 190 trials drive a scripted stub instead of a model to check the harness itself; no
 model-behaviour result below rests on those.
 
+**New 350-run follow-up, 2026-08-19.** A deeper sweep raised the near-miss catalog from
+0 to 216 distractors with 50 graded jobs at each rung, then ran two 50-job controls at
+the largest catalog. Wrong calls rose from 0.12 to 11.28 per job. Specific requests with
+the same 216 lookalikes went 50/50 with zero wrong calls, and vague requests with 216
+unrelated tools never called an injected distractor. See
+[`docs/deep-distractor-run-2026-08-19.md`](docs/deep-distractor-run-2026-08-19.md) and the
+seven `agentic-20260819*.jsonl` files in [`results-reference/`](results-reference/).
+
 **Protocol choice is the second decision. Curating the tool list is the first.** MCP costs
 2.2 to 4.1 ms per call and about twice the schema tokens. Both are small and both are
 fixable. The thing that broke agents here was a large, overlapping tool surface, and it
